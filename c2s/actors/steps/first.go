@@ -1,0 +1,71 @@
+package steps
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"log"
+	"reflect"
+	"strings"
+	"xep/c2s/stream"
+	"xep/entity"
+)
+
+func Starter(s stream.Stream) (err error) {
+	if err = s.Write(entity.Open(s.Server()).Produce()); err == nil {
+		s.Ring(func(b *bytes.Buffer) (ret *bytes.Buffer) {
+			_e, e := entity.Consume(b)
+			if _e != nil {
+				switch e := _e.(type) {
+				case *entity.Stream:
+					s.Id(e.Id)
+				default:
+					log.Println(reflect.TypeOf(e))
+					ret = b //pass
+				}
+			} else if e == nil {
+				ret = nil
+				err = errors.New(fmt.Sprint("unknown entity ", string(b.Bytes())))
+			} else {
+				err = e
+			}
+			return
+		}, 0)
+	}
+	return
+}
+
+type Negotiation struct {
+	AuthMechanisms []string
+}
+
+func (n *Negotiation) Act() func(stream.Stream) error {
+	return func(s stream.Stream) (err error) {
+		s.Ring(func(b *bytes.Buffer) (ret *bytes.Buffer) {
+			var _e entity.Entity
+			if _e, err = entity.Consume(b); err == nil {
+				switch e := _e.(type) {
+				case *entity.Features:
+					n.AuthMechanisms = e.Mechanisms
+				default:
+					log.Println(reflect.TypeOf(e))
+					ret = b //pass
+				}
+			}
+			return
+		}, 0)
+		return
+	}
+}
+
+func (n *Negotiation) HasMechanism(mech string) (ok bool) {
+	if n.AuthMechanisms != nil {
+		for _, v := range n.AuthMechanisms {
+			if strings.ToLower(v) == strings.ToLower(mech) {
+				ok = true
+				break
+			}
+		}
+	}
+	return
+}
