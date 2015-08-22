@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/kpmy/ypk/halt"
 	"io"
 	"strings"
 	"xep/units"
@@ -42,7 +41,6 @@ func (x *dumb) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) 
 		d.DecodeElement(x.x, &start)
 	} else {
 		err = errors.New(fmt.Sprint("unknown entity ", start.Name))
-		halt.As(100, start.Name)
 	}
 	return
 }
@@ -77,4 +75,6 @@ func init() {
 	ns[xml.Name{Space: "urn:ietf:params:xml:ns:xmpp-sasl", Local: "success"}] = func(*bytes.Buffer) Entity { return &Success{} }
 
 	ns[xml.Name{Local: "iq"}] = func(*bytes.Buffer) Entity { return &Iq{} }
+
+	ns[xml.Name{Local: "message"}] = func(*bytes.Buffer) Entity { return &Message{} }
 }

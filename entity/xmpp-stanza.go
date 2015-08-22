@@ -3,33 +3,36 @@ package entity
 import (
 	"encoding/xml"
 	"github.com/kpmy/ypk/fn"
-	"github.com/kpmy/ypk/halt"
+	//	"github.com/kpmy/ypk/halt"
 	"math/rand"
-	"reflect"
+	//	"reflect"
 	"strconv"
 )
 
-type Type string
+type IqType string
 
 const (
-	SET    Type = "set"
-	RESULT Type = "result"
+	SET    IqType = "set"
+	RESULT IqType = "result"
 )
 
-type Stanza interface {
-}
+type MessageType string
+
+const (
+	GROUPCHAT MessageType = "groupchat"
+)
 
 type Iq struct {
 	XMLName xml.Name
 	Id      string      `xml:"id,attr,omitempty"`
-	Type    Type        `xml:"type,attr"`
+	Type    IqType      `xml:"type,attr"`
 	Inner   interface{} `xml:"iq"`
 	dumbProducer
 }
 
 func (i *Iq) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) {
 	i.Id = getAttr(&start, "id")
-	i.Type = Type(getAttr(&start, "type"))
+	i.Type = IqType(getAttr(&start, "type"))
 	var _t xml.Token
 	for stop := false; !stop && err == nil; {
 		_t, err = d.Token()
@@ -41,12 +44,12 @@ func (i *Iq) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) {
 			if !fn.IsNil(i.Inner) {
 				d.DecodeElement(i.Inner, &t)
 			} else {
-				halt.As(100, t.Name)
+				//halt.As(100, t.Name)
 			}
 		case xml.EndElement:
 			stop = t.Name == start.Name
 		default:
-			halt.As(100, reflect.TypeOf(t))
+			//halt.As(100, reflect.TypeOf(t))
 		}
 	}
 	return
@@ -54,7 +57,7 @@ func (i *Iq) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) {
 
 var iq = Iq{XMLName: xml.Name{Local: "iq"}}
 
-func IQ(typ Type, user interface{}) *Iq {
+func IQ(typ IqType, user interface{}) *Iq {
 	i := &Iq{}
 	*i = iq
 	i.Type = typ
@@ -69,6 +72,15 @@ type Presence struct {
 }
 
 var PresencePrototype = Presence{XMLName: xml.Name{Local: "presence"}}
+
+type Message struct {
+	XMLName xml.Name
+	dumbProducer
+	Body string `xml:"body,omitempty"`
+	From string `xml:"from,attr,omitempty"`
+}
+
+var MessagePrototype = Message{XMLName: xml.Name{Local: "message"}}
 
 var us map[xml.Name]func() interface{}
 

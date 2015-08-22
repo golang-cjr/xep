@@ -74,7 +74,7 @@ func (x *xmppStream) Write(b *bytes.Buffer) (err error) {
 }
 
 func (x *xmppStream) Ring(fn func(*bytes.Buffer) *bytes.Buffer, timeout time.Duration) {
-	log.Println("ring")
+	log.Println("wait")
 	timed := make(chan bool)
 	if timeout > 0 {
 		go func() {
@@ -140,10 +140,15 @@ func Dial(_s Stream) (err error) {
 							if n > 0 && err == nil {
 								data := make([]byte, n)
 								copy(data, buf)
-								log.Println("IN", len(data), adler32.Checksum(data))
+								log.Println("PRE", len(data), adler32.Checksum(data))
 								log.Println(string(data))
 								log.Println()
-								stream.data <- pack{data: data, hash: adler32.Checksum(data)}
+								for data := range spl1t(data) {
+									log.Println("IN", len(data), adler32.Checksum(data))
+									log.Println(string(data))
+									log.Println()
+									stream.data <- pack{data: data, hash: adler32.Checksum(data)}
+								}
 							}
 						}
 					}(x)

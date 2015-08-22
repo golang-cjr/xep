@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"log"
+	"strings"
 	"xep/c2s/actors"
 	"xep/c2s/actors/steps"
 	"xep/c2s/stream"
@@ -24,9 +25,18 @@ func init() {
 	log.SetFlags(0)
 }
 
-func conv(fn func(entity.Entity) entity.Entity) func(*bytes.Buffer) *bytes.Buffer {
+func conv(fn func(entity.Entity)) func(*bytes.Buffer) *bytes.Buffer {
 	return func(in *bytes.Buffer) (out *bytes.Buffer) {
-
+		if _e, err := entity.Consume(in); err == nil {
+			switch e := _e.(type) {
+			case *entity.Message:
+				fn(e)
+			}
+		} else {
+			log.Println("ERROR", err)
+			log.Println(string(in.Bytes()))
+			log.Println()
+		}
 		return
 	}
 }
@@ -51,9 +61,12 @@ func main() {
 			actors.With(st).Do(func(st stream.Stream) error {
 				actors.With(st).Do(steps.PresenceTo("golang@conference.jabber.ru/xep")).Run()
 				for {
-					st.Ring(conv(func(entity.Entity) entity.Entity {
-
-						return nil
+					st.Ring(conv(func(_e entity.Entity) {
+						switch e := _e.(type) {
+						case *entity.Message:
+							log.Println(strings.TrimPrefix(e.From, "golang@conference.jabber.ru/"))
+							log.Println(e.Body)
+						}
 					}), 0)
 				}
 			}).Run()
