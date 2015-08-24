@@ -8,6 +8,7 @@ import (
 	"github.com/ivpusic/neo-cors"
 	"github.com/ivpusic/neo/middlewares/logger"
 	"github.com/skratchdot/open-golang/open"
+	"html/template"
 	"log"
 	"strings"
 	"sync"
@@ -27,12 +28,36 @@ var (
 	neo_log  = golog.GetLogger("application")
 )
 
+const tpl = `<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8"/>
+	</head>
+	<body>
+		{{range .Posts}}<p>{{.User}}: {{.Msg}}</p>{{else}}ничего ._.{{end}}
+	</body>
+</html>
+`
+
+type Post struct {
+	User string
+	Msg  string
+}
+
+type Posts struct {
+	data []Post
+	sync.Mutex
+}
+
+var posts *Posts
+
 func init() {
 	flag.StringVar(&user, "u", "goxep", "-u=user")
 	flag.StringVar(&server, "s", "xmpp.ru", "-s=server")
 	flag.StringVar(&resource, "r", "go", "-r=resource")
 	flag.StringVar(&pwd, "p", "GogogOg0", "-p=password")
 	log.SetFlags(0)
+	posts = new(Posts)
 }
 
 func conv(fn func(entity.Entity)) func(*bytes.Buffer) *bytes.Buffer {
@@ -77,8 +102,13 @@ func main() {
 						st.Ring(conv(func(_e entity.Entity) {
 							switch e := _e.(type) {
 							case *entity.Message:
-								log.Println(strings.TrimPrefix(e.From, "golang@conference.jabber.ru/"))
-								log.Println(e.Body)
+								if strings.HasPrefix(e.From, "golang@conference.jabber.ru/") {
+									posts.Lock()
+									posts.data = append(posts.data, Post{User: strings.TrimPrefix(e.From, "golang@conference.jabber.ru/"),
+										Msg: e.Body})
+									log.Println(len(posts.data))
+									posts.Unlock()
+								}
 							}
 						}), 0)
 					}
@@ -93,8 +123,19 @@ func main() {
 		app := neo.App()
 		app.Use(logger.Log)
 		app.Use(cors.Init())
+		t, _ := template.New("log").Parse(tpl)
 		app.Get("/", func(ctx *neo.Ctx) {
-			ctx.Res.Text("I am Neo Programmer", 200)
+			posts.Lock()
+			data := struct {
+				Posts []Post
+			}{}
+			for _, p := range posts.data {
+				data.Posts = append(data.Posts, p)
+			}
+			posts.Unlock()
+			buf := bytes.NewBuffer(nil)
+			t.Execute(buf, data)
+			ctx.Res.Raw(buf.Bytes(), 200)
 		})
 		app.Start()
 		wg.Done()
