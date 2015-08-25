@@ -19,7 +19,7 @@ func (b *Bind) Act() func(s stream.Stream) error {
 		bind.Resource = b.Rsrc
 		iq := entity.IQ(entity.SET, bind)
 		if err = s.Write(entity.Produce(iq)); err == nil {
-			s.Ring(func(b *bytes.Buffer) (ret *bytes.Buffer) {
+			s.Ring(func(b *bytes.Buffer) (done bool) {
 				var _e entity.Entity
 				if _e, err = entity.Consume(b); err == nil {
 					switch e := _e.(type) {
@@ -27,12 +27,10 @@ func (b *Bind) Act() func(s stream.Stream) error {
 						switch {
 						case e.Id == iq.Id && e.Type == entity.RESULT:
 							stream.Bind(s, e.Inner.(*entity.Bind).Jid)
-						default:
-							ret = b //pass
+							done = true
 						}
 					default:
 						log.Println(reflect.TypeOf(e))
-						ret = b //pass
 					}
 				}
 				return
@@ -45,19 +43,17 @@ func (b *Bind) Act() func(s stream.Stream) error {
 func Session(s stream.Stream) (err error) {
 	iq := entity.IQ(entity.SET, &entity.SessionPrototype)
 	if err = s.Write(entity.Produce(iq)); err == nil {
-		s.Ring(func(b *bytes.Buffer) (ret *bytes.Buffer) {
+		s.Ring(func(b *bytes.Buffer) (done bool) {
 			var _e entity.Entity
 			if _e, err = entity.Consume(b); err == nil {
 				switch e := _e.(type) {
 				case *entity.Iq:
 					switch {
 					case e.Id == iq.Id && e.Type == entity.RESULT:
-					default:
-						ret = b
+						done = true
 					}
 				default:
 					log.Println(reflect.TypeOf(e))
-					ret = b //pass
 				}
 			}
 			return

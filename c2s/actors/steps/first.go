@@ -13,18 +13,17 @@ import (
 
 func Starter(s stream.Stream) (err error) {
 	if err = s.Write(entity.Open(s.Server()).Produce()); err == nil {
-		s.Ring(func(b *bytes.Buffer) (ret *bytes.Buffer) {
+		s.Ring(func(b *bytes.Buffer) (done bool) {
 			_e, e := entity.Consume(b)
 			if _e != nil {
 				switch e := _e.(type) {
 				case *entity.Stream:
 					s.Id(e.Id)
+					done = true
 				default:
 					log.Println(reflect.TypeOf(e))
-					ret = b //pass
 				}
 			} else if e == nil {
-				ret = nil
 				err = errors.New(fmt.Sprint("unknown entity ", string(b.Bytes())))
 			} else {
 				err = e
@@ -41,15 +40,15 @@ type Negotiation struct {
 
 func (n *Negotiation) Act() func(stream.Stream) error {
 	return func(s stream.Stream) (err error) {
-		s.Ring(func(b *bytes.Buffer) (ret *bytes.Buffer) {
+		s.Ring(func(b *bytes.Buffer) (done bool) {
 			var _e entity.Entity
 			if _e, err = entity.Consume(b); err == nil {
 				switch e := _e.(type) {
 				case *entity.Features:
 					n.AuthMechanisms = e.Mechanisms
+					done = true
 				default:
 					log.Println(reflect.TypeOf(e))
-					ret = b //pass
 				}
 			}
 			return

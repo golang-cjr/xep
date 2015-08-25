@@ -20,15 +20,14 @@ func (p *PlainAuth) Act() func(stream.Stream) error {
 		*auth = entity.PlainAuthPrototype
 		auth.Init(p.Client.Name, p.Pwd)
 		if err = s.Write(entity.Produce(auth)); err == nil {
-			s.Ring(func(b *bytes.Buffer) (ret *bytes.Buffer) {
+			s.Ring(func(b *bytes.Buffer) (done bool) {
 				var _e entity.Entity
 				if _e, err = entity.Consume(b); err == nil {
 					switch e := _e.(type) {
 					case *entity.Success:
-
+						done = true
 					default:
 						log.Println(reflect.TypeOf(e))
-						ret = b //pass
 					}
 				}
 				return

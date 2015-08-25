@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/kpmy/ypk/halt"
 	"hash/adler32"
-	"log"
 	"net"
 	"reflect"
 	"time"
@@ -16,7 +15,7 @@ import (
 type Stream interface {
 	Server() *units.Server
 	Write(*bytes.Buffer) error
-	Ring(func(*bytes.Buffer) *bytes.Buffer, time.Duration)
+	Ring(func(*bytes.Buffer) bool, time.Duration)
 	Id(...string) string
 }
 
@@ -26,7 +25,7 @@ type wrapperStream struct {
 
 func (w *wrapperStream) Write(b *bytes.Buffer) error { return w.base.Write(b) }
 
-func (w *wrapperStream) Ring(fn func(*bytes.Buffer) *bytes.Buffer, t time.Duration) {
+func (w *wrapperStream) Ring(fn func(*bytes.Buffer) bool, t time.Duration) {
 	w.base.Ring(fn, t)
 }
 
@@ -38,10 +37,10 @@ type dummyStream struct {
 	to *units.Server
 }
 
-func (d *dummyStream) Ring(func(*bytes.Buffer) *bytes.Buffer, time.Duration) { panic(126) }
-func (d *dummyStream) Write(b *bytes.Buffer) error                           { panic(126) }
-func (d *dummyStream) Server() *units.Server                                 { return d.to }
-func (d *dummyStream) Id(...string) string                                   { return "" }
+func (d *dummyStream) Ring(func(*bytes.Buffer) bool, time.Duration) { panic(126) }
+func (d *dummyStream) Write(b *bytes.Buffer) error                  { panic(126) }
+func (d *dummyStream) Server() *units.Server                        { return d.to }
+func (d *dummyStream) Id(...string) string                          { return "" }
 
 type xmppStream struct {
 	to   *units.Server
@@ -66,15 +65,11 @@ func (x *xmppStream) Id(s ...string) string {
 func (x *xmppStream) Server() *units.Server { return x.to }
 
 func (x *xmppStream) Write(b *bytes.Buffer) (err error) {
-	log.Println("OUT")
-	log.Println(string(b.Bytes()))
-	log.Println()
 	_, err = x.conn.Write(b.Bytes())
 	return
 }
 
-func (x *xmppStream) Ring(fn func(*bytes.Buffer) *bytes.Buffer, timeout time.Duration) {
-	log.Println("wait")
+func (x *xmppStream) Ring(fn func(*bytes.Buffer) bool, timeout time.Duration) {
 	timed := make(chan bool)
 	if timeout > 0 {
 		go func() {
@@ -85,13 +80,10 @@ func (x *xmppStream) Ring(fn func(*bytes.Buffer) *bytes.Buffer, timeout time.Dur
 	for stop := false; !stop; {
 		select {
 		case p := <-x.data:
-			log.Println("try ", p.hash)
-			res := fn(bytes.NewBuffer(p.data))
-			if res != nil {
-				log.Println("passed", p.hash)
+			done := fn(bytes.NewBuffer(p.data))
+			if !done {
 				x.data <- pack{data: p.data, hash: p.hash}
 			} else {
-				log.Println("done", p.hash)
 				stop = true
 			}
 		case <-timed:
@@ -140,13 +132,7 @@ func Dial(_s Stream) (err error) {
 							if n > 0 && err == nil {
 								data := make([]byte, n)
 								copy(data, buf)
-								log.Println("PRE", len(data), adler32.Checksum(data))
-								log.Println(string(data))
-								log.Println()
 								for data := range spl1t(data) {
-									log.Println("IN", len(data), adler32.Checksum(data))
-									log.Println(string(data))
-									log.Println()
 									stream.data <- pack{data: data, hash: adler32.Checksum(data)}
 								}
 							}

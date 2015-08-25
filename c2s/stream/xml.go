@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/xml"
 	"github.com/kpmy/ypk/halt"
-	"io"
-	"log"
 	"reflect"
 )
 
@@ -69,10 +67,8 @@ func spl1t(bunch []byte) (ret chan []byte) {
 				default:
 					halt.As(100, reflect.TypeOf(t))
 				}
-			} else if err == io.EOF {
-				flush()
 			} else {
-				log.Println(err)
+				flush()
 			}
 		}
 		close(ret)

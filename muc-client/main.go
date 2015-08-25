@@ -10,6 +10,8 @@ import (
 	"github.com/skratchdot/open-golang/open"
 	"html/template"
 	"log"
+	"math/rand"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -60,17 +62,19 @@ func init() {
 	posts = new(Posts)
 }
 
-func conv(fn func(entity.Entity)) func(*bytes.Buffer) *bytes.Buffer {
-	return func(in *bytes.Buffer) (out *bytes.Buffer) {
+func conv(fn func(entity.Entity)) func(*bytes.Buffer) bool {
+	return func(in *bytes.Buffer) (done bool) {
+		done = true
+		log.Println("IN")
+		log.Println(string(in.Bytes()))
+		log.Println()
 		if _e, err := entity.Consume(in); err == nil {
 			switch e := _e.(type) {
 			case *entity.Message:
 				fn(e)
 			}
 		} else {
-			log.Println("ERROR", err)
-			log.Println(string(in.Bytes()))
-			log.Println()
+			log.Println(err)
 		}
 		return
 	}
@@ -93,7 +97,7 @@ func main() {
 			if neg.HasMechanism("PLAIN") {
 				auth := &steps.PlainAuth{Client: c, Pwd: pwd}
 				neg := &steps.Negotiation{}
-				bind := &steps.Bind{Rsrc: resource}
+				bind := &steps.Bind{Rsrc: resource + strconv.Itoa(rand.Intn(500))}
 				actors.With(st).Do(auth.Act(), errHandler).Do(steps.Starter).Do(neg.Act()).Do(bind.Act()).Do(steps.Session).Run()
 				actors.With(st).Do(steps.InitialPresence).Run()
 				actors.With(st).Do(func(st stream.Stream) error {
@@ -106,7 +110,6 @@ func main() {
 									posts.Lock()
 									posts.data = append(posts.data, Post{User: strings.TrimPrefix(e.From, "golang@conference.jabber.ru/"),
 										Msg: e.Body})
-									log.Println(len(posts.data))
 									posts.Unlock()
 								}
 							}
