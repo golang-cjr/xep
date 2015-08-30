@@ -127,7 +127,7 @@ func main() {
 		app.Use(logger.Log)
 		app.Use(cors.Init())
 		t, _ := template.New("log").Parse(tpl)
-		app.Get("/", func(ctx *neo.Ctx) {
+		app.Get("/", func(ctx *neo.Ctx) (int, error) {
 			posts.Lock()
 			data := struct {
 				Posts []Post
@@ -138,7 +138,8 @@ func main() {
 			posts.Unlock()
 			buf := bytes.NewBuffer(nil)
 			t.Execute(buf, data)
-			ctx.Res.Raw(buf.Bytes(), 200)
+			ctx.Res.Raw(buf.Bytes())
+			return 200, nil
 		})
 		app.Start()
 		wg.Done()
