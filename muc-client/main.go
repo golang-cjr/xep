@@ -36,7 +36,8 @@ const tpl = `<!DOCTYPE html>
 		<meta charset="UTF-8"/>
 	</head>
 	<body>
-		{{range .Posts}}<p>{{.User}}: {{.Msg}}</p>{{else}}ничего ._.{{end}}
+		<h1>лог:</h1>
+		{{range .Posts}}<em>{{.User}}</em>: {{.Msg}}<br/>{{else}}ничего ._.{{end}}
 	</body>
 </html>
 `
@@ -132,7 +133,8 @@ func main() {
 			data := struct {
 				Posts []Post
 			}{}
-			for _, p := range posts.data {
+			for i := len(posts.data) - 1; i >= 0; i-- {
+				p := posts.data[i]
 				data.Posts = append(data.Posts, p)
 			}
 			posts.Unlock()
