@@ -81,6 +81,13 @@ func conv(fn func(entity.Entity)) func(*bytes.Buffer) bool {
 	}
 }
 
+func doReply(s stream.Stream) error {
+	m := entity.MSG(entity.GROUPCHAT)
+	m.Body = "пщ"
+	m.To = "golang@conference.jabber.ru"
+	return s.Write(entity.Produce(m))
+}
+
 func main() {
 	flag.Parse()
 	s := &units.Server{Name: server}
@@ -108,10 +115,16 @@ func main() {
 							switch e := _e.(type) {
 							case *entity.Message:
 								if strings.HasPrefix(e.From, "golang@conference.jabber.ru/") {
+									sender := strings.TrimPrefix(e.From, "golang@conference.jabber.ru/")
 									posts.Lock()
-									posts.data = append(posts.data, Post{User: strings.TrimPrefix(e.From, "golang@conference.jabber.ru/"),
+									posts.data = append(posts.data, Post{User: sender,
 										Msg: e.Body})
 									posts.Unlock()
+									if strings.EqualFold(e.Body, "пщ") && sender != "xep" {
+										go func() {
+											actors.With(st).Do(doReply).Run()
+										}()
+									}
 								}
 							}
 						}), 0)

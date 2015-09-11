@@ -76,11 +76,22 @@ var PresencePrototype = Presence{XMLName: xml.Name{Local: "presence"}}
 type Message struct {
 	XMLName xml.Name
 	dumbProducer
-	Body string `xml:"body,omitempty"`
-	From string `xml:"from,attr,omitempty"`
+	Body string      `xml:"body,omitempty"`
+	From string      `xml:"from,attr,omitempty"`
+	To   string      `xml:"to,attr,omitempty"`
+	Type MessageType `xml:"type,attr,omitempty"`
+	Id   string      `xml:"id,attr,omitempty"`
 }
 
 var MessagePrototype = Message{XMLName: xml.Name{Local: "message"}}
+
+func MSG(typ MessageType) *Message {
+	m := &Message{}
+	*m = MessagePrototype
+	m.Type = typ
+	m.Id = strconv.FormatInt(int64(rand.Intn(0xffffff)), 16)
+	return m
+}
 
 var us map[xml.Name]func() interface{}
 
