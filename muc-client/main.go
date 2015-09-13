@@ -119,7 +119,7 @@ func init() {
 
 func (d *StatData) Len() int { return len(d.Stat) }
 
-func (d *StatData) Less(i, j int) bool { return d.Stat[i].Count < d.Stat[j].Count }
+func (d *StatData) Less(i, j int) bool { return d.Stat[i].Count > d.Stat[j].Count }
 
 func (d *StatData) Swap(i, j int) { d.Stat[i], d.Stat[j] = d.Stat[j], d.Stat[i] }
 
