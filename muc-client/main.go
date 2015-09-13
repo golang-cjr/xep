@@ -139,7 +139,7 @@ func main() {
 			if neg.HasMechanism("PLAIN") {
 				auth := &steps.PlainAuth{Client: c, Pwd: pwd}
 				neg := &steps.Negotiation{}
-				bind := &steps.Bind{Rsrc: resource + strconv.Itoa(rand.Intn(500))}
+				bind := &steps.Bind{Rsrc: resource + strconv.Itoa(rand.New(rand.NewSource(time.Now().UnixNano())).Intn(500))}
 				actors.With(st).Do(auth.Act(), errHandler).Do(steps.Starter).Do(neg.Act()).Do(bind.Act()).Do(steps.Session).Run()
 				actors.With(st).Do(steps.InitialPresence).Run()
 				actors.With(st).Do(func(st stream.Stream) error {
