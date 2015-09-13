@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"log"
 	"math/rand"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,27 +31,54 @@ var (
 	neo_log  = golog.GetLogger("application")
 )
 
-const tpl = `<!DOCTYPE html>
+const tplog = `<!DOCTYPE html>
 <html>
 	<head>
 		<meta charset="UTF-8"/>
 	</head>
 	<body>
+		<a href="/stat">стата</a>
 		<h1>лог:</h1>
 		{{range .Posts}}<em>{{.User}}</em>: {{.Msg}}<br/>{{else}}ничего ._.{{end}}
 	</body>
 </html>
 `
 
-type Post struct {
-	User string
-	Msg  string
-}
+const tpstat = `<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8"/>
+	</head>
+	<body>
+		<a href="/">логи</a>
+		<h1>стата:</h1>
+		<p><em>всего</em>: {{.Total}}</p>
+		{{range .Stat}}<em>{{.User}}</em>: {{printf "%.2f" .Count}}%<br/>{{else}}ничего ._.{{end}}
+	</body>
+</html>
+`
 
-type Posts struct {
-	data []Post
-	sync.Mutex
-}
+type (
+	StatData struct {
+		Total int
+		Stat  []Stat
+	}
+
+	Stat struct {
+		User  string
+		Count float64
+	}
+
+	Post struct {
+		User string
+		Msg  string
+	}
+
+	Posts struct {
+		data []Post
+		sync.Mutex
+	}
+)
 
 var posts *Posts
 
@@ -62,6 +90,12 @@ func init() {
 	log.SetFlags(0)
 	posts = new(Posts)
 }
+
+func (d *StatData) Len() int { return len(d.Stat) }
+
+func (d *StatData) Less(i, j int) bool { return d.Stat[i].Count < d.Stat[j].Count }
+
+func (d *StatData) Swap(i, j int) { d.Stat[i], d.Stat[j] = d.Stat[j], d.Stat[i] }
 
 func conv(fn func(entity.Entity)) func(*bytes.Buffer) bool {
 	return func(in *bytes.Buffer) (done bool) {
@@ -140,8 +174,8 @@ func main() {
 		app := neo.App()
 		app.Use(logger.Log)
 		app.Use(cors.Init())
-		t, _ := template.New("log").Parse(tpl)
 		app.Get("/", func(ctx *neo.Ctx) (int, error) {
+			t, _ := template.New("log").Parse(tplog)
 			posts.Lock()
 			data := struct {
 				Posts []Post
@@ -156,12 +190,41 @@ func main() {
 			ctx.Res.Raw(buf.Bytes())
 			return 200, nil
 		})
+		app.Get("/stat", func(ctx *neo.Ctx) (int, error) {
+			t, _ := template.New("stat").Parse(tpstat)
+			mm := make(map[string]int)
+			total := 0
+			posts.Lock()
+			for _, p := range posts.data {
+				n := 0
+				if old, ok := mm[p.User]; ok {
+					n = old + 1
+				} else {
+					n = 1
+				}
+				mm[p.User] = n
+			}
+			total = len(posts.data)
+			posts.Unlock()
+			data := &StatData{Total: total}
+			for u, c := range mm {
+				s := Stat{User: u}
+				s.Count = float64(c) / float64(total) * 100
+				data.Stat = append(data.Stat, s)
+			}
+			sort.Stable(data)
+			buf := bytes.NewBuffer(nil)
+			t.Execute(buf, data)
+			ctx.Res.Raw(buf.Bytes())
+			return 200, nil
+		})
 		app.Start()
 		wg.Done()
 	}()
 	go func() {
 		time.Sleep(time.Duration(time.Millisecond * 200))
 		open.Start("http://localhost:3000")
+		//open.Start("http://localhost:3000/stat")
 	}()
 	wg.Wait()
 }
