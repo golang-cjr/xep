@@ -22,6 +22,7 @@ import (
 	"xep/c2s/actors/steps"
 	"xep/c2s/stream"
 	"xep/entity"
+	"xep/muc-client/muc"
 	"xep/units"
 )
 
@@ -46,6 +47,7 @@ type (
 
 	Post struct {
 		User string
+		Nick string
 		Msg  string
 	}
 
@@ -133,9 +135,13 @@ func main() {
 							case *entity.Message:
 								if strings.HasPrefix(e.From, "golang@conference.jabber.ru/") {
 									sender := strings.TrimPrefix(e.From, "golang@conference.jabber.ru/")
+									um := muc.UserMapping()
+									user := sender
+									if u, ok := um[sender]; ok {
+										user, _ = u.(string)
+									}
 									posts.Lock()
-									posts.data = append(posts.data, Post{User: sender,
-										Msg: e.Body})
+									posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
 									posts.Unlock()
 									if strings.EqualFold(e.Body, "пщ") && sender != "xep" {
 										go func() {

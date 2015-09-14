@@ -8,6 +8,6 @@
 	<body>
 		<a href="/stat">стата</a>
 		<h1>лог</h1>
-		{{range .Posts}}<em>{{.User}}</em>: {{.Msg}}<br/>{{else}}ничего ._.{{end}}
+		{{range .Posts}}<em>{{.Nick}}</em>: {{.Msg}}<br/>{{else}}ничего ._.{{end}}
 	</body>
 </html>
