@@ -11,6 +11,8 @@ import (
 	"html/template"
 	"log"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,59 +32,6 @@ var (
 	resource string
 	neo_log  = golog.GetLogger("application")
 )
-
-const tplog = `<!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8"/>
-	</head>
-	<body>
-		<a href="/stat">стата</a>
-		<h1>лог:</h1>
-		{{range .Posts}}<em>{{.User}}</em>: {{.Msg}}<br/>{{else}}ничего ._.{{end}}
-	</body>
-</html>
-`
-
-const tpstat = `<!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8"/>
-		<script src="http://code.highcharts.com/adapters/standalone-framework.js"></script>
-		<script src="http://code.highcharts.com/highcharts.js"></script>
-	</head>
-	<body>
-		<a href="/">логи</a>
-		<h1>стата:</h1>
-		<p><em>всего</em>: {{.Total}}</p>
-		{{range .Stat}}<em>{{.User}}</em>: {{printf "%.2f" .Count}}%<br/>{{else}}ничего ._.{{end}}
-		<div id="chart-container">
-		</div>
-	</body>
-	<script type="text/javascript">
-		var data = [];
-		{{range .Stat}}
-			data.push({
-				name: "{{.User}}",
-				y: parseFloat({{printf "%.2f" .Count}})
-				});
-		{{end}}
-		var chart = new Highcharts.Chart({
-			chart: {
-				renderTo: 'chart-container',
-				type: 'pie'
-			},
-			title: {
-				text: "Стата"
-			},
-			series: [{
-				name: "Пиздливость",
-				data: data
-				}]
-			});
-	</script>
-</html>
-`
 
 type (
 	StatData struct {
@@ -148,6 +97,14 @@ func doReply(s stream.Stream) error {
 	return s.Write(entity.Produce(m))
 }
 
+func loadTpl(name string) (ret *template.Template, err error) {
+	tn := filepath.Join("tpl", name+".tpl")
+	if _, err = os.Stat(tn); err == nil {
+		ret, err = template.ParseFiles(tn)
+	}
+	return
+}
+
 func main() {
 	flag.Parse()
 	s := &units.Server{Name: server}
@@ -200,8 +157,9 @@ func main() {
 		app := neo.App()
 		app.Use(logger.Log)
 		app.Use(cors.Init())
+		//app.Templates("tpl/*.tpl") //кэширует в этом месте и далее не загружает с диска, сука
+		app.Serve("/static", "static")
 		app.Get("/", func(ctx *neo.Ctx) (int, error) {
-			t, _ := template.New("log").Parse(tplog)
 			posts.Lock()
 			data := struct {
 				Posts []Post
@@ -211,13 +169,16 @@ func main() {
 				data.Posts = append(data.Posts, p)
 			}
 			posts.Unlock()
-			buf := bytes.NewBuffer(nil)
-			t.Execute(buf, data)
-			ctx.Res.Raw(buf.Bytes())
-			return 200, nil
+
+			if t, err := loadTpl("log"); t != nil {
+				//ctx.Res.Tpl("log.tpl", data)
+				t.Execute(ctx.Res, data)
+				return 200, nil
+			} else {
+				return 500, err
+			}
 		})
 		app.Get("/stat", func(ctx *neo.Ctx) (int, error) {
-			t, _ := template.New("stat").Parse(tpstat)
 			mm := make(map[string]int)
 			total := 0
 			posts.Lock()
@@ -239,10 +200,12 @@ func main() {
 				data.Stat = append(data.Stat, s)
 			}
 			sort.Stable(data)
-			buf := bytes.NewBuffer(nil)
-			t.Execute(buf, data)
-			ctx.Res.Raw(buf.Bytes())
-			return 200, nil
+			if t, err := loadTpl("stat"); t != nil {
+				t.Execute(ctx.Res, data)
+				return 200, nil
+			} else {
+				return 500, err
+			}
 		})
 		app.Start()
 		wg.Done()
