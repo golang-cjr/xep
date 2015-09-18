@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
+	"fmt"
 	"github.com/ivpusic/golog"
 	"github.com/ivpusic/neo"
 	"github.com/ivpusic/neo-cors"
 	"github.com/ivpusic/neo/middlewares/logger"
+	"github.com/kpmy/go-lua"
 	"github.com/skratchdot/open-golang/open"
 	"html/template"
 	"log"
@@ -99,6 +102,36 @@ func doReply(s stream.Stream) error {
 	return s.Write(entity.Produce(m))
 }
 
+func doLua(script string) func(stream.Stream) error {
+	return func(s stream.Stream) error {
+		m := entity.MSG(entity.GROUPCHAT)
+		m.To = "golang@conference.jabber.ru"
+		defer func() {
+			if r := recover(); r != nil {
+				m.Body = fmt.Sprint(r)
+				s.Write(entity.Produce(m))
+			}
+		}()
+		l := lua.NewState()
+		lua.OpenLibraries(l)
+		if err := lua.DoString(l, script); err == nil {
+			l.Out.Seek(0, 0)
+			rd := bufio.NewReader(l.Out)
+			var err error
+			var rr []rune
+			for r := ' '; err == nil; {
+				if r, _, err = rd.ReadRune(); err == nil {
+					rr = append(rr, r)
+				}
+			}
+			m.Body = string(rr)
+		} else {
+			m.Body = fmt.Sprint(err)
+		}
+		return s.Write(entity.Produce(m))
+	}
+}
+
 func loadTpl(name string) (ret *template.Template, err error) {
 	tn := filepath.Join("tpl", name+".tpl")
 	if _, err = os.Stat(tn); err == nil {
@@ -143,10 +176,17 @@ func main() {
 									posts.Lock()
 									posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
 									posts.Unlock()
-									if strings.EqualFold(e.Body, "пщ") && sender != "xep" {
-										go func() {
-											actors.With(st).Do(doReply).Run()
-										}()
+									if sender != "xep" {
+										switch {
+										case strings.EqualFold(e.Body, "пщ"):
+											go func() {
+												actors.With(st).Do(doReply).Run()
+											}()
+										case strings.HasPrefix(e.Body, "lua>"):
+											go func(script string) {
+												actors.With(st).Do(doLua(script)).Run()
+											}(strings.TrimPrefix(e.Body, "lua>"))
+										}
 									}
 								}
 							}
