@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	_ "bufio"
 	"bytes"
 	"flag"
 	"fmt"
@@ -104,32 +104,35 @@ func doReply(s stream.Stream) error {
 
 func doLua(script string) func(stream.Stream) error {
 	return func(s stream.Stream) error {
-		m := entity.MSG(entity.GROUPCHAT)
-		m.To = "golang@conference.jabber.ru"
+
+		send := func(l *lua.State) int {
+			m := entity.MSG(entity.GROUPCHAT)
+			m.To = "golang@conference.jabber.ru"
+			str, _ := l.ToString(1)
+			m.Body = str
+			err := s.Write(entity.Produce(m))
+			if err != nil {
+				fmt.Printf("lua shit error: %s", err)
+			}
+			return 0
+		}
+
 		defer func() {
 			if r := recover(); r != nil {
+				m := entity.MSG(entity.GROUPCHAT)
+				m.To = "golang@conference.jabber.ru"
 				m.Body = fmt.Sprint(r)
 				s.Write(entity.Produce(m))
 			}
 		}()
 		l := lua.NewState()
 		lua.OpenLibraries(l)
-		if err := lua.DoString(l, script); err == nil {
-			l.Out.Seek(0, 0)
-			rd := bufio.NewReader(l.Out)
-			var err error
-			var rr []rune
-			for r := ' '; err == nil; {
-				if r, _, err = rd.ReadRune(); err == nil {
-					rr = append(rr, r)
-				}
-			}
-			m.Body = string(rr)
-		} else {
-			m.Body = fmt.Sprint(err)
-		}
-		return s.Write(entity.Produce(m))
+		l.PushGoFunction(send)
+		l.SetGlobal("send")
+		lua.DoString(l, script)
+		return nil
 	}
+	return nil
 }
 
 func loadTpl(name string) (ret *template.Template, err error) {
