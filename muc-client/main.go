@@ -1,15 +1,13 @@
 package main
 
 import (
-	"bufio"
+	_ "bufio"
 	"bytes"
 	"flag"
-	"fmt"
 	"github.com/ivpusic/golog"
 	"github.com/ivpusic/neo"
 	"github.com/ivpusic/neo-cors"
 	"github.com/ivpusic/neo/middlewares/logger"
-	"github.com/kpmy/go-lua"
 	"github.com/skratchdot/open-golang/open"
 	"html/template"
 	"log"
@@ -25,6 +23,7 @@ import (
 	"xep/c2s/actors/steps"
 	"xep/c2s/stream"
 	"xep/entity"
+	"xep/muc-client/luaexecutor"
 	"xep/muc-client/muc"
 	"xep/units"
 )
@@ -61,6 +60,8 @@ type (
 )
 
 var posts *Posts
+
+var executor *luaexecutor.Executor
 
 func init() {
 	flag.StringVar(&user, "u", "goxep", "-u=user")
@@ -104,32 +105,11 @@ func doReply(s stream.Stream) error {
 
 func doLua(script string) func(stream.Stream) error {
 	return func(s stream.Stream) error {
-		m := entity.MSG(entity.GROUPCHAT)
-		m.To = "golang@conference.jabber.ru"
-		defer func() {
-			if r := recover(); r != nil {
-				m.Body = fmt.Sprint(r)
-				s.Write(entity.Produce(m))
-			}
-		}()
-		l := lua.NewState()
-		lua.OpenLibraries(l)
-		if err := lua.DoString(l, script); err == nil {
-			l.Out.Seek(0, 0)
-			rd := bufio.NewReader(l.Out)
-			var err error
-			var rr []rune
-			for r := ' '; err == nil; {
-				if r, _, err = rd.ReadRune(); err == nil {
-					rr = append(rr, r)
-				}
-			}
-			m.Body = string(rr)
-		} else {
-			m.Body = fmt.Sprint(err)
-		}
-		return s.Write(entity.Produce(m))
+
+		executor.Run(script)
+		return nil
 	}
+	return nil
 }
 
 func loadTpl(name string) (ret *template.Template, err error) {
@@ -148,6 +128,8 @@ func main() {
 	wg.Add(1)
 	go func() {
 		st := stream.New(s)
+		executor = luaexecutor.NewExecutor(st)
+		executor.Start()
 		if err := stream.Dial(st); err == nil {
 			errHandler := func(err error) {
 				log.Fatal(err)
@@ -177,6 +159,7 @@ func main() {
 									posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
 									posts.Unlock()
 									if sender != "xep" {
+										executor.NewMessage(luaexecutor.IncomingMessage{sender, e.Body})
 										switch {
 										case strings.EqualFold(e.Body, "пщ"):
 											go func() {
