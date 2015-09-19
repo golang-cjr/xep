@@ -159,6 +159,7 @@ func main() {
 									posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
 									posts.Unlock()
 									if sender != "xep" {
+										executor.NewMessage(luaexecutor.IncomingMessage{sender, e.Body})
 										switch {
 										case strings.EqualFold(e.Body, "пщ"):
 											go func() {
