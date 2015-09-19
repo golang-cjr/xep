@@ -4,12 +4,10 @@ import (
 	_ "bufio"
 	"bytes"
 	"flag"
-	"fmt"
 	"github.com/ivpusic/golog"
 	"github.com/ivpusic/neo"
 	"github.com/ivpusic/neo-cors"
 	"github.com/ivpusic/neo/middlewares/logger"
-	"github.com/kpmy/go-lua"
 	"github.com/skratchdot/open-golang/open"
 	"html/template"
 	"log"
@@ -25,6 +23,7 @@ import (
 	"xep/c2s/actors/steps"
 	"xep/c2s/stream"
 	"xep/entity"
+	"xep/muc-client/luaexecutor"
 	"xep/muc-client/muc"
 	"xep/units"
 )
@@ -61,6 +60,8 @@ type (
 )
 
 var posts *Posts
+
+var executor *luaexecutor.Executor
 
 func init() {
 	flag.StringVar(&user, "u", "goxep", "-u=user")
@@ -105,31 +106,7 @@ func doReply(s stream.Stream) error {
 func doLua(script string) func(stream.Stream) error {
 	return func(s stream.Stream) error {
 
-		send := func(l *lua.State) int {
-			m := entity.MSG(entity.GROUPCHAT)
-			m.To = "golang@conference.jabber.ru"
-			str, _ := l.ToString(1)
-			m.Body = str
-			err := s.Write(entity.Produce(m))
-			if err != nil {
-				fmt.Printf("lua shit error: %s", err)
-			}
-			return 0
-		}
-
-		defer func() {
-			if r := recover(); r != nil {
-				m := entity.MSG(entity.GROUPCHAT)
-				m.To = "golang@conference.jabber.ru"
-				m.Body = fmt.Sprint(r)
-				s.Write(entity.Produce(m))
-			}
-		}()
-		l := lua.NewState()
-		lua.OpenLibraries(l)
-		l.PushGoFunction(send)
-		l.SetGlobal("send")
-		lua.DoString(l, script)
+		executor.Run(script)
 		return nil
 	}
 	return nil
@@ -151,6 +128,8 @@ func main() {
 	wg.Add(1)
 	go func() {
 		st := stream.New(s)
+		executor = luaexecutor.NewExecutor(st)
+		executor.Start()
 		if err := stream.Dial(st); err == nil {
 			errHandler := func(err error) {
 				log.Fatal(err)
