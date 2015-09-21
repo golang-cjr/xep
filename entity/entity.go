@@ -70,39 +70,40 @@ func (x *domm) Unmarshal() (err error) {
 	var _t xml.Token
 	var this dom.Element
 	for stop := false; !stop && err == nil; {
-		_t, err = d.RawToken()
-		switch t := _t.(type) {
-		case xml.StartElement:
-			el := dom.Elem(dom.ThisName(t.Name))
-			if x.model == nil {
-				x.model = el
-				this = el
-			} else {
-				this.AppendChild(el)
-				this = el
-			}
-			for _, a := range t.Attr {
-				this.Attr(dom.ThisName(a.Name), a.Value)
-			}
-		case xml.CharData:
-			if this != nil {
-				this.AppendChild(dom.Txt(string(t)))
-			} else {
-				stop = true
-			}
-		case xml.EndElement:
-			if this != nil {
-				if p := this.Parent(); p != nil {
-					this = p.(dom.Element)
+		if _t, err = d.RawToken(); err == nil {
+			switch t := _t.(type) {
+			case xml.StartElement:
+				el := dom.Elem(dom.ThisName(t.Name))
+				if x.model == nil {
+					x.model = el
+					this = el
+				} else {
+					this.AppendChild(el)
+					this = el
+				}
+				for _, a := range t.Attr {
+					this.Attr(dom.ThisName(a.Name), a.Value)
+				}
+			case xml.CharData:
+				if this != nil {
+					this.AppendChild(dom.Txt(string(t)))
 				} else {
 					stop = true
 				}
-			} else {
-				stop = true
+			case xml.EndElement:
+				if this != nil {
+					if p := this.Parent(); p != nil {
+						this = p.(dom.Element)
+					} else {
+						stop = true
+					}
+				} else {
+					stop = true
+				}
+			case nil:
+			default:
+				halt.As(100, reflect.TypeOf(t))
 			}
-		case nil:
-		default:
-			halt.As(100, reflect.TypeOf(t))
 		}
 	}
 	return

@@ -136,6 +136,9 @@ func Dial(_s Stream) (err error) {
 							if n > 0 && err == nil {
 								data := make([]byte, n)
 								copy(data, buf)
+								log.Println("PRE")
+								log.Println(string(data))
+								log.Println()
 								for data := range spl1t(data) {
 									stream.data <- pack{data: data, hash: adler32.Checksum(data)}
 								}
