@@ -67,7 +67,7 @@ func (e *Executor) execute() {
 			m := entity.MSG(entity.GROUPCHAT)
 			m.To = "golang@conference.jabber.ru"
 			m.Body = err.Error()
-			e.xmppStream.Write(entity.Produce(m))
+			e.xmppStream.Write(entity.ProduceStatic(m))
 		}
 	}
 }
@@ -77,7 +77,7 @@ func (e *Executor) sendingRoutine() {
 		m := entity.MSG(entity.GROUPCHAT)
 		m.To = "golang@conference.jabber.ru"
 		m.Body = msg
-		err := e.xmppStream.Write(entity.Produce(m))
+		err := e.xmppStream.Write(entity.ProduceStatic(m))
 		if err != nil {
 			fmt.Printf("send error: %s", err)
 		}
@@ -97,7 +97,7 @@ func (e *Executor) processIncomingMsgs() {
 				m := entity.MSG(entity.GROUPCHAT)
 				m.To = "golang@conference.jabber.ru"
 				m.Body, _ = e.state.ToString(-1)
-				e.xmppStream.Write(entity.Produce(m))
+				e.xmppStream.Write(entity.ProduceStatic(m))
 			}
 		}
 	}

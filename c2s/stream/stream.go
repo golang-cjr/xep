@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/kpmy/ypk/halt"
 	"hash/adler32"
+	"log"
 	"net"
 	"reflect"
 	"time"
@@ -65,6 +66,9 @@ func (x *xmppStream) Id(s ...string) string {
 func (x *xmppStream) Server() *units.Server { return x.to }
 
 func (x *xmppStream) Write(b *bytes.Buffer) (err error) {
+	log.Println("OUT")
+	log.Println(string(b.Bytes()))
+	log.Println()
 	_, err = x.conn.Write(b.Bytes())
 	return
 }

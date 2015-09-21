@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"strings"
+	"xep/tools/dom"
 )
 
 func setAttr(start *xml.StartElement, name, value string) {
@@ -26,3 +27,7 @@ func getAttr(start *xml.StartElement, name string) (value string) {
 type dumbProducer struct{}
 
 func (d *dumbProducer) Produce() *bytes.Buffer { panic(126) }
+
+func (d *dumbProducer) Model() dom.Element {
+	panic(126)
+}

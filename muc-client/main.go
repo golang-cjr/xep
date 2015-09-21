@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "bufio"
 	"bytes"
 	"flag"
 	"github.com/ivpusic/golog"
@@ -23,9 +22,16 @@ import (
 	"xep/c2s/actors/steps"
 	"xep/c2s/stream"
 	"xep/entity"
+	"xep/entity/dyn"
 	"xep/muc-client/luaexecutor"
 	"xep/muc-client/muc"
+	"xep/tools/dom"
 	"xep/units"
+)
+
+const (
+	ROOM = "golang@conference.jabber.ru"
+	ME   = "xep"
 )
 
 var (
@@ -79,15 +85,31 @@ func (d *StatData) Less(i, j int) bool { return d.Stat[i].Count > d.Stat[j].Coun
 func (d *StatData) Swap(i, j int) { d.Stat[i], d.Stat[j] = d.Stat[j], d.Stat[i] }
 
 func conv(fn func(entity.Entity)) func(*bytes.Buffer) bool {
+	delayed := func(msg dom.Element) bool {
+		for _, _e := range msg.Children() {
+			if e, ok := _e.(dom.Element); ok && e.Name() == "delay" {
+				return true
+			}
+		}
+		return false
+	}
+
 	return func(in *bytes.Buffer) (done bool) {
 		done = true
 		log.Println("IN")
 		log.Println(string(in.Bytes()))
 		log.Println()
-		if _e, err := entity.Consume(in); err == nil {
-			switch e := _e.(type) {
-			case *entity.Message:
-				fn(e)
+		if _e, err := entity.Decode(bytes.NewBuffer(in.Bytes())); err == nil {
+			e := _e.Model()
+			switch e.Name() {
+			case dyn.MESSAGE:
+				if !delayed(e) {
+					if ent, err := entity.ConsumeStatic(in); err == nil {
+						fn(ent)
+					} else {
+						log.Println(err)
+					}
+				}
 			}
 		} else {
 			log.Println(err)
@@ -95,17 +117,21 @@ func conv(fn func(entity.Entity)) func(*bytes.Buffer) bool {
 		return
 	}
 }
-
-func doReply(s stream.Stream) error {
-	m := entity.MSG(entity.GROUPCHAT)
-	m.Body = "пщ"
-	m.To = "golang@conference.jabber.ru"
-	return s.Write(entity.Produce(m))
+func doReply(sender string, typ entity.MessageType) func(stream.Stream) error {
+	return func(s stream.Stream) error {
+		m := entity.MSG(typ)
+		if typ != entity.GROUPCHAT {
+			m.To = units.Bare2Full(ROOM, sender)
+		} else {
+			m.To = ROOM
+		}
+		m.Body = "пщ"
+		return s.Write(entity.Encode(dyn.NewMessage(m.Type, m.To, m.Body)))
+	}
 }
 
 func doLua(script string) func(stream.Stream) error {
 	return func(s stream.Stream) error {
-
 		executor.Run(script)
 		return nil
 	}
@@ -128,8 +154,6 @@ func main() {
 	wg.Add(1)
 	go func() {
 		st := stream.New(s)
-		executor = luaexecutor.NewExecutor(st)
-		executor.Start()
 		if err := stream.Dial(st); err == nil {
 			errHandler := func(err error) {
 				log.Fatal(err)
@@ -143,13 +167,15 @@ func main() {
 				actors.With(st).Do(auth.Act(), errHandler).Do(steps.Starter).Do(neg.Act()).Do(bind.Act()).Do(steps.Session).Run()
 				actors.With(st).Do(steps.InitialPresence).Run()
 				actors.With(st).Do(func(st stream.Stream) error {
-					actors.With(st).Do(steps.PresenceTo("golang@conference.jabber.ru/xep")).Run()
+					actors.With(st).Do(steps.PresenceTo(units.Bare2Full(ROOM, ME))).Run()
+					executor = luaexecutor.NewExecutor(st)
+					executor.Start()
 					for {
 						st.Ring(conv(func(_e entity.Entity) {
 							switch e := _e.(type) {
 							case *entity.Message:
-								if strings.HasPrefix(e.From, "golang@conference.jabber.ru/") {
-									sender := strings.TrimPrefix(e.From, "golang@conference.jabber.ru/")
+								if strings.HasPrefix(e.From, ROOM+"/") {
+									sender := strings.TrimPrefix(e.From, ROOM+"/")
 									um := muc.UserMapping()
 									user := sender
 									if u, ok := um[sender]; ok {
@@ -158,12 +184,12 @@ func main() {
 									posts.Lock()
 									posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
 									posts.Unlock()
-									if sender != "xep" {
+									if sender != ME {
 										executor.NewMessage(luaexecutor.IncomingMessage{sender, e.Body})
 										switch {
-										case strings.EqualFold(e.Body, "пщ"):
+										case strings.EqualFold(strings.TrimSpace(e.Body), "пщ"):
 											go func() {
-												actors.With(st).Do(doReply).Run()
+												actors.With(st).Do(doReply(sender, e.Type)).Run()
 											}()
 										case strings.HasPrefix(e.Body, "lua>"):
 											go func(script string) {

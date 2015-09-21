@@ -3,9 +3,7 @@ package entity
 import (
 	"encoding/xml"
 	"github.com/kpmy/ypk/fn"
-	//	"github.com/kpmy/ypk/halt"
 	"math/rand"
-	//	"reflect"
 	"strconv"
 )
 

@@ -18,10 +18,10 @@ func (b *Bind) Act() func(s stream.Stream) error {
 		*bind = entity.BindPrototype
 		bind.Resource = b.Rsrc
 		iq := entity.IQ(entity.SET, bind)
-		if err = s.Write(entity.Produce(iq)); err == nil {
+		if err = s.Write(entity.ProduceStatic(iq)); err == nil {
 			s.Ring(func(b *bytes.Buffer) (done bool) {
 				var _e entity.Entity
-				if _e, err = entity.Consume(b); err == nil {
+				if _e, err = entity.ConsumeStatic(b); err == nil {
 					switch e := _e.(type) {
 					case *entity.Iq:
 						switch {
@@ -42,10 +42,10 @@ func (b *Bind) Act() func(s stream.Stream) error {
 
 func Session(s stream.Stream) (err error) {
 	iq := entity.IQ(entity.SET, &entity.SessionPrototype)
-	if err = s.Write(entity.Produce(iq)); err == nil {
+	if err = s.Write(entity.ProduceStatic(iq)); err == nil {
 		s.Ring(func(b *bytes.Buffer) (done bool) {
 			var _e entity.Entity
-			if _e, err = entity.Consume(b); err == nil {
+			if _e, err = entity.ConsumeStatic(b); err == nil {
 				switch e := _e.(type) {
 				case *entity.Iq:
 					switch {
