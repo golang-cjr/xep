@@ -128,21 +128,11 @@ func Dial(_s Stream) (err error) {
 						stream.conn.Close()
 					}(x)
 					go func(stream *xmppStream) {
-						var err error
-						buf := make([]byte, 65535)
-						for err == nil {
-							n := 0
-							n, err = stream.conn.Read(buf)
-							if n > 0 && err == nil {
-								data := make([]byte, n)
-								copy(data, buf)
-								log.Println("PRE")
-								log.Println(string(data))
-								log.Println()
-								for data := range spl1t(data) {
-									stream.data <- pack{data: data, hash: adler32.Checksum(data)}
-								}
-							}
+						for data := range spl1t(stream.conn) {
+							log.Println("SPLIT")
+							log.Println(string(data))
+							log.Println()
+							stream.data <- pack{data: data, hash: adler32.Checksum(data)}
 						}
 					}(x)
 					w.base = x

@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/xml"
 	"github.com/kpmy/ypk/halt"
+	"io"
 	"reflect"
 )
 
-func spl1t(bunch []byte) (ret chan []byte) {
+func spl1t(bunch io.Reader) (ret chan []byte) {
 	ret = make(chan []byte)
 	go func() {
-		d := xml.NewDecoder(bytes.NewReader(bunch))
+		d := xml.NewDecoder(bunch)
 		d.Strict = false
 		var (
 			_t  xml.Token
@@ -53,6 +54,10 @@ func spl1t(bunch []byte) (ret chan []byte) {
 					}
 					tt.Attr = tmp
 					e.EncodeToken(tt)
+					if tt.Name.Local == "stream:stream" {
+						depth--
+						flush()
+					}
 					depth++
 				case xml.EndElement:
 					tt := t

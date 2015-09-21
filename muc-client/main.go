@@ -7,7 +7,7 @@ import (
 	"github.com/ivpusic/neo"
 	"github.com/ivpusic/neo-cors"
 	"github.com/ivpusic/neo/middlewares/logger"
-	"github.com/skratchdot/open-golang/open"
+	//	"github.com/skratchdot/open-golang/open"
 	"html/template"
 	"log"
 	"math/rand"
@@ -267,7 +267,7 @@ func main() {
 	}()
 	go func() {
 		time.Sleep(time.Duration(time.Millisecond * 200))
-		open.Start("http://localhost:3000")
+		//open.Start("http://localhost:3000")
 		//open.Start("http://localhost:3000/stat")
 	}()
 	wg.Wait()
