@@ -3,7 +3,7 @@ package luaexecutor
 import (
 	"fmt"
 	"github.com/kpmy/go-lua"
-	"log"
+	"sync"
 	"time"
 	"xep/c2s/stream"
 	"xep/entity"
@@ -23,6 +23,7 @@ type Executor struct {
 	incomingScripts chan string
 	outgoingMsgs    chan string
 	incomingMsgs    chan IncomingMessage
+	stateMutex      sync.Mutex
 	state           *lua.State
 	xmppStream      stream.Stream
 }
@@ -62,6 +63,7 @@ func NewExecutor(s stream.Stream) *Executor {
 
 func (e *Executor) execute() {
 	for script := range e.incomingScripts {
+		e.stateMutex.Lock()
 		err := lua.DoString(e.state, script)
 		if err != nil {
 			fmt.Printf("lua fucking shit error: %s\n", err)
@@ -70,6 +72,7 @@ func (e *Executor) execute() {
 			m.Body = err.Error()
 			e.xmppStream.Write(entity.ProduceStatic(m))
 		}
+		e.stateMutex.Unlock()
 	}
 }
 
@@ -88,6 +91,7 @@ func (e *Executor) sendingRoutine() {
 
 func (e *Executor) processIncomingMsgs() {
 	for msg := range e.incomingMsgs {
+		e.stateMutex.Lock()
 		e.state.PushString(callbackLocation)
 		e.state.Table(lua.RegistryIndex)
 		if e.state.IsFunction(-1) {
@@ -103,6 +107,7 @@ func (e *Executor) processIncomingMsgs() {
 		} else {
 			e.state.Pop(1)
 		}
+		e.stateMutex.Unlock()
 	}
 }
 
