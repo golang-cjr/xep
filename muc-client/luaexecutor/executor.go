@@ -3,6 +3,7 @@ package luaexecutor
 import (
 	"fmt"
 	"github.com/kpmy/go-lua"
+	"log"
 	"time"
 	"xep/c2s/stream"
 	"xep/entity"
@@ -86,6 +87,11 @@ func (e *Executor) sendingRoutine() {
 }
 
 func (e *Executor) processIncomingMsgs() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("recovered", r)
+		}
+	}()
 	for msg := range e.incomingMsgs {
 		e.state.PushString(callbackLocation)
 		e.state.Table(lua.RegistryIndex)
@@ -122,5 +128,8 @@ func (e *Executor) Run(script string) {
 // Call this on every incoming message - it's required for
 // chat.onmessage to work.
 func (e *Executor) NewMessage(msg IncomingMessage) {
-	e.incomingMsgs <- msg
+	select {
+	case e.incomingMsgs <- msg:
+	default:
+	}
 }
