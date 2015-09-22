@@ -87,11 +87,6 @@ func (e *Executor) sendingRoutine() {
 }
 
 func (e *Executor) processIncomingMsgs() {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Println("recovered", r)
-		}
-	}()
 	for msg := range e.incomingMsgs {
 		e.state.PushString(callbackLocation)
 		e.state.Table(lua.RegistryIndex)
@@ -105,6 +100,8 @@ func (e *Executor) processIncomingMsgs() {
 				m.Body, _ = e.state.ToString(-1)
 				e.xmppStream.Write(entity.ProduceStatic(m))
 			}
+		} else {
+			e.state.Pop(1)
 		}
 	}
 }
