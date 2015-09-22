@@ -1,19 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"github.com/ivpusic/golog"
-	"github.com/ivpusic/neo"
-	"github.com/ivpusic/neo-cors"
-	"github.com/ivpusic/neo/middlewares/logger"
 	//	"github.com/skratchdot/open-golang/open"
 	"html/template"
 	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,7 +20,7 @@ import (
 	"xep/entity/dyn"
 	"xep/muc-client/luaexecutor"
 	"xep/muc-client/muc"
-	"xep/tools/dom"
+
 	"xep/units"
 )
 
@@ -84,39 +79,6 @@ func (d *StatData) Less(i, j int) bool { return d.Stat[i].Count > d.Stat[j].Coun
 
 func (d *StatData) Swap(i, j int) { d.Stat[i], d.Stat[j] = d.Stat[j], d.Stat[i] }
 
-func conv(fn func(entity.Entity)) func(*bytes.Buffer) bool {
-	delayed := func(msg dom.Element) bool {
-		for _, _e := range msg.Children() {
-			if e, ok := _e.(dom.Element); ok && e.Name() == "delay" {
-				return true
-			}
-		}
-		return false
-	}
-
-	return func(in *bytes.Buffer) (done bool) {
-		done = true
-		log.Println("IN")
-		log.Println(string(in.Bytes()))
-		log.Println()
-		if _e, err := entity.Decode(bytes.NewBuffer(in.Bytes())); err == nil {
-			e := _e.Model()
-			switch e.Name() {
-			case dyn.MESSAGE:
-				if !delayed(e) {
-					if ent, err := entity.ConsumeStatic(in); err == nil {
-						fn(ent)
-					} else {
-						log.Println(err)
-					}
-				}
-			}
-		} else {
-			log.Println(err)
-		}
-		return
-	}
-}
 func doReply(sender string, typ entity.MessageType) func(stream.Stream) error {
 	return func(s stream.Stream) error {
 		m := entity.MSG(typ)
@@ -146,6 +108,45 @@ func loadTpl(name string) (ret *template.Template, err error) {
 	return
 }
 
+func bot(st stream.Stream) error {
+	actors.With(st).Do(steps.PresenceTo(units.Bare2Full(ROOM, ME))).Run()
+	executor = luaexecutor.NewExecutor(st)
+	executor.Start()
+	for {
+		st.Ring(conv(func(_e entity.Entity) {
+			switch e := _e.(type) {
+			case *entity.Message:
+				if strings.HasPrefix(e.From, ROOM+"/") {
+					sender := strings.TrimPrefix(e.From, ROOM+"/")
+					um := muc.UserMapping()
+					user := sender
+					if u, ok := um[sender]; ok {
+						user, _ = u.(string)
+					}
+					if e.Type == entity.GROUPCHAT {
+						posts.Lock()
+						posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
+						posts.Unlock()
+					}
+					if sender != ME {
+						executor.NewMessage(luaexecutor.IncomingMessage{sender, e.Body})
+						switch {
+						case strings.EqualFold(strings.TrimSpace(e.Body), "пщ"):
+							go func() {
+								actors.With(st).Do(doReply(sender, e.Type)).Run()
+							}()
+						case strings.HasPrefix(e.Body, "lua>"):
+							go func(script string) {
+								actors.With(st).Do(doLua(script)).Run()
+							}(strings.TrimPrefix(e.Body, "lua>"))
+						}
+					}
+				}
+			}
+		}), 0)
+	}
+}
+
 func main() {
 	flag.Parse()
 	s := &units.Server{Name: server}
@@ -166,105 +167,14 @@ func main() {
 				bind := &steps.Bind{Rsrc: resource + strconv.Itoa(rand.New(rand.NewSource(time.Now().UnixNano())).Intn(500))}
 				actors.With(st).Do(auth.Act(), errHandler).Do(steps.Starter).Do(neg.Act()).Do(bind.Act()).Do(steps.Session).Run()
 				actors.With(st).Do(steps.InitialPresence).Run()
-				actors.With(st).Do(func(st stream.Stream) error {
-					actors.With(st).Do(steps.PresenceTo(units.Bare2Full(ROOM, ME))).Run()
-					executor = luaexecutor.NewExecutor(st)
-					executor.Start()
-					for {
-						st.Ring(conv(func(_e entity.Entity) {
-							switch e := _e.(type) {
-							case *entity.Message:
-								if strings.HasPrefix(e.From, ROOM+"/") {
-									sender := strings.TrimPrefix(e.From, ROOM+"/")
-									um := muc.UserMapping()
-									user := sender
-									if u, ok := um[sender]; ok {
-										user, _ = u.(string)
-									}
-									posts.Lock()
-									posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
-									posts.Unlock()
-									if sender != ME {
-										executor.NewMessage(luaexecutor.IncomingMessage{sender, e.Body})
-										switch {
-										case strings.EqualFold(strings.TrimSpace(e.Body), "пщ"):
-											go func() {
-												actors.With(st).Do(doReply(sender, e.Type)).Run()
-											}()
-										case strings.HasPrefix(e.Body, "lua>"):
-											go func(script string) {
-												actors.With(st).Do(doLua(script)).Run()
-											}(strings.TrimPrefix(e.Body, "lua>"))
-										}
-									}
-								}
-							}
-						}), 0)
-					}
-				}).Run()
+				actors.With(st).Do(bot).Run()
 			}
 			wg.Done()
 		} else {
 			log.Fatal(err)
 		}
 	}()
-	go func() {
-		app := neo.App()
-		app.Use(logger.Log)
-		app.Use(cors.Init())
-		//app.Templates("tpl/*.tpl") //кэширует в этом месте и далее не загружает с диска, сука
-		app.Serve("/static", "static")
-		app.Get("/", func(ctx *neo.Ctx) (int, error) {
-			posts.Lock()
-			data := struct {
-				Posts []Post
-			}{}
-			for i := len(posts.data) - 1; i >= 0; i-- {
-				p := posts.data[i]
-				data.Posts = append(data.Posts, p)
-			}
-			posts.Unlock()
-
-			if t, err := loadTpl("log"); t != nil {
-				//ctx.Res.Tpl("log.tpl", data)
-				t.Execute(ctx.Res, data)
-				return 200, nil
-			} else {
-				return 500, err
-			}
-		})
-		app.Get("/stat", func(ctx *neo.Ctx) (int, error) {
-			mm := make(map[string]int)
-			total := 0
-			posts.Lock()
-			for _, p := range posts.data {
-				n := 0
-				if old, ok := mm[p.User]; ok {
-					n = old + 1
-				} else {
-					n = 1
-				}
-				mm[p.User] = n
-			}
-			total = len(posts.data)
-			posts.Unlock()
-			data := &StatData{Total: total}
-			for u, c := range mm {
-				s := Stat{User: u}
-				s.Count = float64(c) / float64(total) * 100
-				data.Stat = append(data.Stat, s)
-			}
-			sort.Stable(data)
-			if t, err := loadTpl("stat"); t != nil {
-				t.Execute(ctx.Res, data)
-				return 200, nil
-			} else {
-				return 500, err
-			}
-		})
-		app.Start()
-		wg.Done()
-	}()
+	go neo_server(wg)
 	go func() {
 		time.Sleep(time.Duration(time.Millisecond * 200))
 		//open.Start("http://localhost:3000")
