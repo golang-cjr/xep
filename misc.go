@@ -2,11 +2,11 @@ package main
 
 import (
 	"bytes"
+	"github.com/kpmy/xippo/entity"
+	"github.com/kpmy/xippo/entity/dyn"
+	"github.com/kpmy/xippo/tools/dom"
 	"gopkg.in/xmlpath.v2"
 	"log"
-	"xep/entity"
-	"xep/entity/dyn"
-	"xep/tools/dom"
 )
 
 func conv(fn func(entity.Entity)) func(*bytes.Buffer) bool {

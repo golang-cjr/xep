@@ -1,2 +1,2 @@
 # xep
-golang xmpp client
+golang@c.j.r chat-bot

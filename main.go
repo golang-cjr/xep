@@ -4,6 +4,12 @@ import (
 	"flag"
 	"github.com/ivpusic/golog"
 	//	"github.com/skratchdot/open-golang/open"
+	"github.com/kpmy/xippo/c2s/actors"
+	"github.com/kpmy/xippo/c2s/actors/steps"
+	"github.com/kpmy/xippo/c2s/stream"
+	"github.com/kpmy/xippo/entity"
+	"github.com/kpmy/xippo/entity/dyn"
+	"github.com/kpmy/xippo/units"
 	"html/template"
 	"log"
 	"math/rand"
@@ -13,15 +19,8 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"xep/c2s/actors"
-	"xep/c2s/actors/steps"
-	"xep/c2s/stream"
-	"xep/entity"
-	"xep/entity/dyn"
-	"xep/muc-client/luaexecutor"
-	"xep/muc-client/muc"
-
-	"xep/units"
+	"xep/luaexecutor"
+	"xep/muc"
 )
 
 const (

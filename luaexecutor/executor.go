@@ -3,10 +3,10 @@ package luaexecutor
 import (
 	"fmt"
 	"github.com/kpmy/go-lua"
+	"github.com/kpmy/xippo/c2s/stream"
+	"github.com/kpmy/xippo/entity"
 	"sync"
 	"time"
-	"xep/c2s/stream"
-	"xep/entity"
 )
 
 const sleepDuration time.Duration = 1 * time.Second
