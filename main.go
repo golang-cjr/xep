@@ -4,6 +4,8 @@ import (
 	"flag"
 	"github.com/ivpusic/golog"
 	//	"github.com/skratchdot/open-golang/open"
+	"github.com/kpmy/xep/luaexecutor"
+	"github.com/kpmy/xep/muc"
 	"github.com/kpmy/xippo/c2s/actors"
 	"github.com/kpmy/xippo/c2s/actors/steps"
 	"github.com/kpmy/xippo/c2s/stream"
@@ -19,8 +21,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"xep/luaexecutor"
-	"xep/muc"
 )
 
 const (
