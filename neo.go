@@ -4,6 +4,7 @@ import (
 	"github.com/ivpusic/neo"
 	"github.com/ivpusic/neo-cors"
 	"github.com/ivpusic/neo/middlewares/logger"
+	"html/template"
 	"sort"
 	"sync"
 )
@@ -34,33 +35,25 @@ func neo_server(wg *sync.WaitGroup) {
 		}
 	})
 	app.Get("/stat", func(ctx *neo.Ctx) (int, error) {
-		mm := make(map[string]int)
-		total := 0
-		posts.Lock()
-		for _, p := range posts.data {
-			n := 0
-			if old, ok := mm[p.User]; ok {
-				n = old + 1
-			} else {
-				n = 1
+		var s *CStatDoc
+		var err error
+		if s, err = GetStat(); err == nil {
+			mm := s.Data
+			total := s.Total
+			data := &StatData{Total: total}
+			for u, c := range mm {
+				s := Stat{User: u}
+				s.Count = float64(c) / float64(total) * 100
+				data.Stat = append(data.Stat, s)
 			}
-			mm[p.User] = n
+			sort.Stable(data)
+			var t *template.Template
+			if t, err = loadTpl("stat"); t != nil {
+				t.Execute(ctx.Res, data)
+				return 200, nil
+			}
 		}
-		total = len(posts.data)
-		posts.Unlock()
-		data := &StatData{Total: total}
-		for u, c := range mm {
-			s := Stat{User: u}
-			s.Count = float64(c) / float64(total) * 100
-			data.Stat = append(data.Stat, s)
-		}
-		sort.Stable(data)
-		if t, err := loadTpl("stat"); t != nil {
-			t.Execute(ctx.Res, data)
-			return 200, nil
-		} else {
-			return 500, err
-		}
+		return 500, err
 	})
 	app.Start()
 	wg.Done()

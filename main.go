@@ -125,6 +125,7 @@ func bot(st stream.Stream) error {
 					if e.Type == entity.GROUPCHAT {
 						posts.Lock()
 						posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
+						IncStat(user)
 						posts.Unlock()
 					}
 					if sender != ME {
