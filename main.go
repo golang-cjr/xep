@@ -100,7 +100,7 @@ func doLua(script string) func(stream.Stream) error {
 }
 
 func doLuaAndPrint(script string) func(stream.Stream) error {
-	return doLua(fmt.Sprintf("chat.send(%s)", script))
+	return doLua(fmt.Sprintf(`chat.send("%s")`, script))
 }
 
 func loadTpl(name string) (ret *template.Template, err error) {
@@ -135,18 +135,18 @@ func bot(st stream.Stream) error {
 					if sender != ME {
 						executor.NewMessage(luaexecutor.IncomingMessage{sender, e.Body})
 						switch {
-						case strings.EqualFold(strings.TrimSpace(e.Body), "пщ"):
-							go func() {
-								actors.With(st).Do(doReply(sender, e.Type)).Run()
-							}()
+						/*case strings.EqualFold(strings.TrimSpace(e.Body), "пщ"):
+						go func() {
+							actors.With(st).Do(doReply(sender, e.Type)).Run()
+						}() */
 						case strings.HasPrefix(e.Body, "lua>"):
 							go func(script string) {
 								actors.With(st).Do(doLua(script)).Run()
 							}(strings.TrimPrefix(e.Body, "lua>"))
-						case strings.HasPrefix(e.Body, "luap>"):
+						case strings.HasPrefix(e.Body, "say"):
 							go func(script string) {
-								actors.With(st).Do(doLua(script)).Run()
-							}(strings.TrimPrefix(e.Body, "luap>"))
+								actors.With(st).Do(doLuaAndPrint(script)).Run()
+							}(strings.TrimSpace(strings.TrimPrefix(e.Body, "say")))
 						}
 					}
 				}

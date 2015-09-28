@@ -5,6 +5,7 @@ import (
 	"github.com/kpmy/go-lua"
 	"github.com/kpmy/xippo/c2s/stream"
 	"github.com/kpmy/xippo/entity"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -94,6 +95,7 @@ func NewExecutor(s stream.Stream) *Executor {
 	e.state.PushString(callbacksLocation)
 	e.state.NewTable()
 	e.state.SetTable(lua.RegistryIndex)
+	lua.DoFile(e.state, filepath.Join("static", "bootstrap.lua"))
 	return e
 }
 
