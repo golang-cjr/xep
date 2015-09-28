@@ -10,7 +10,7 @@ import (
 )
 
 const sleepDuration time.Duration = 1 * time.Second
-const callbackLocation string = "chatclbk"
+const callbacksLocation string = "chatclbks"
 
 // An utility struct for incoming messages.
 type IncomingMessage struct {
@@ -45,19 +45,55 @@ func NewExecutor(s stream.Stream) *Executor {
 	}
 
 	registerClbk := func(l *lua.State) int {
-		l.PushString(callbackLocation)
-		l.PushValue(-2)
-		l.SetTable(lua.RegistryIndex)
+		// get callbacks table
+		l.PushString(callbacksLocation)
+		l.Table(lua.RegistryIndex)
+		// set callback
+		l.PushValue(1)
+		l.PushValue(2)
+		l.SetTable(-3)
+		l.SetTop(0)
 		return 0
+	}
+
+	listClbks := func(l *lua.State) int {
+		clbkNames := []string{}
+		// get callbacks table
+		l.PushString(callbacksLocation)
+		l.Table(lua.RegistryIndex)
+		// loop
+		l.PushNil()
+		for l.Next(-2) {
+			key, ok := l.ToString(-2)
+			// ignore non-string shit
+			if ok {
+				clbkNames = append(clbkNames, key)
+			}
+			l.Pop(1)
+		}
+		l.SetTop(0)
+		l.NewTable()
+		// build a list from callback names
+		for i, key := range clbkNames {
+			l.PushInteger(i + 1)
+			l.PushString(key)
+			l.SetTable(-3)
+		}
+		return 1
 	}
 
 	var chatLibrary = []lua.RegistryFunction{
 		lua.RegistryFunction{"send", send},
 		lua.RegistryFunction{"onmessage", registerClbk},
+		lua.RegistryFunction{"listmsghandlers", listClbks},
 	}
 
 	lua.NewLibrary(e.state, chatLibrary)
 	e.state.SetGlobal("chat")
+	// set up callbacks table
+	e.state.PushString(callbacksLocation)
+	e.state.NewTable()
+	e.state.SetTable(lua.RegistryIndex)
 	return e
 }
 
@@ -92,21 +128,29 @@ func (e *Executor) sendingRoutine() {
 func (e *Executor) processIncomingMsgs() {
 	for msg := range e.incomingMsgs {
 		e.stateMutex.Lock()
-		e.state.PushString(callbackLocation)
+		// get callbacks table
+		e.state.PushString(callbacksLocation)
 		e.state.Table(lua.RegistryIndex)
-		if e.state.IsFunction(-1) {
-			e.state.PushString(msg.Sender)
-			e.state.PushString(msg.Body)
-			err := e.state.ProtectedCall(2, 0, 0)
-			if err != nil {
-				m := entity.MSG(entity.GROUPCHAT)
-				m.To = "golang@conference.jabber.ru"
-				m.Body, _ = e.state.ToString(-1)
-				e.xmppStream.Write(entity.ProduceStatic(m))
+		// loop over callbacks
+		e.state.PushNil()
+		for e.state.Next(-2) {
+			if e.state.IsFunction(-1) {
+				e.state.PushString(msg.Sender)
+				e.state.PushString(msg.Body)
+				err := e.state.ProtectedCall(2, 0, 0)
+				if err != nil {
+					m := entity.MSG(entity.GROUPCHAT)
+					m.To = "golang@conference.jabber.ru"
+					m.Body, _ = e.state.ToString(-1)
+					e.xmppStream.Write(entity.ProduceStatic(m))
+					e.state.Pop(1)
+				}
+			} else {
+				e.state.Pop(1)
 			}
-		} else {
-			e.state.Pop(1)
 		}
+		// pop callbacks table
+		e.state.Pop(1)
 		e.stateMutex.Unlock()
 	}
 }
@@ -130,8 +174,5 @@ func (e *Executor) Run(script string) {
 // Call this on every incoming message - it's required for
 // chat.onmessage to work.
 func (e *Executor) NewMessage(msg IncomingMessage) {
-	select {
-	case e.incomingMsgs <- msg:
-	default:
-	}
+	e.incomingMsgs <- msg
 }
