@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/ivpusic/golog"
 	//	"github.com/skratchdot/open-golang/open"
 	"github.com/kpmy/xep/luaexecutor"
@@ -96,7 +97,10 @@ func doLua(script string) func(stream.Stream) error {
 		executor.Run(script)
 		return nil
 	}
-	return nil
+}
+
+func doLuaAndPrint(script string) func(stream.Stream) error {
+	return doLua(fmt.Sprintf("chat.send(%s)", script))
 }
 
 func loadTpl(name string) (ret *template.Template, err error) {
@@ -139,6 +143,10 @@ func bot(st stream.Stream) error {
 							go func(script string) {
 								actors.With(st).Do(doLua(script)).Run()
 							}(strings.TrimPrefix(e.Body, "lua>"))
+						case strings.HasPrefix(e.Body, "luap>"):
+							go func(script string) {
+								actors.With(st).Do(doLua(script)).Run()
+							}(strings.TrimPrefix(e.Body, "luap>"))
 						}
 					}
 				}
