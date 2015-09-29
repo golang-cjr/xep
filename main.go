@@ -112,7 +112,7 @@ func loadTpl(name string) (ret *template.Template, err error) {
 }
 
 func bot(st stream.Stream) error {
-	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME)))).Run(st)
+	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME), entity.CHAT, "ПЩ сюды: https://github.com/kpmy/xep"))).Run(st)
 	executor = luaexecutor.NewExecutor(st)
 	executor.Start()
 	for {
