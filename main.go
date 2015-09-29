@@ -112,7 +112,7 @@ func loadTpl(name string) (ret *template.Template, err error) {
 }
 
 func bot(st stream.Stream) error {
-	actors.With(st).Do(steps.PresenceTo(units.Bare2Full(ROOM, ME))).Run()
+	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME)))).Run(st)
 	executor = luaexecutor.NewExecutor(st)
 	executor.Start()
 	for {
@@ -141,11 +141,11 @@ func bot(st stream.Stream) error {
 						}() */
 						case strings.HasPrefix(e.Body, "lua>"):
 							go func(script string) {
-								actors.With(st).Do(doLua(script)).Run()
+								actors.With().Do(actors.C(doLua(script))).Run(st)
 							}(strings.TrimPrefix(e.Body, "lua>"))
 						case strings.HasPrefix(e.Body, "say"):
 							go func(script string) {
-								actors.With(st).Do(doLuaAndPrint(script)).Run()
+								actors.With().Do(actors.C(doLuaAndPrint(script))).Run(st)
 							}(strings.TrimSpace(strings.TrimPrefix(e.Body, "say")))
 						}
 					}
@@ -168,14 +168,14 @@ func main() {
 				log.Fatal(err)
 			}
 			neg := &steps.Negotiation{}
-			actors.With(st).Do(steps.Starter, errHandler).Do(neg.Act(), errHandler).Run()
+			actors.With().Do(actors.C(steps.Starter), errHandler).Do(actors.C(neg.Act()), errHandler).Run(st)
 			if neg.HasMechanism("PLAIN") {
 				auth := &steps.PlainAuth{Client: c, Pwd: pwd}
 				neg := &steps.Negotiation{}
 				bind := &steps.Bind{Rsrc: resource + strconv.Itoa(rand.New(rand.NewSource(time.Now().UnixNano())).Intn(500))}
-				actors.With(st).Do(auth.Act(), errHandler).Do(steps.Starter).Do(neg.Act()).Do(bind.Act()).Do(steps.Session).Run()
-				actors.With(st).Do(steps.InitialPresence).Run()
-				actors.With(st).Do(bot).Run()
+				actors.With().Do(actors.C(auth.Act()), errHandler).Do(actors.C(steps.Starter)).Do(actors.C(neg.Act())).Do(actors.C(bind.Act())).Do(actors.C(steps.Session)).Run(st)
+				actors.With().Do(actors.C(steps.InitialPresence)).Run(st)
+				actors.With().Do(actors.C(bot)).Run(st)
 			}
 			wg.Done()
 		} else {
