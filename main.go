@@ -100,7 +100,7 @@ func doLua(script string) func(stream.Stream) error {
 }
 
 func doLuaAndPrint(script string) func(stream.Stream) error {
-	return doLua(fmt.Sprintf(`chat.send("%s")`, script))
+	return doLua(fmt.Sprintf(`chat.send(%s)`, script))
 }
 
 func loadTpl(name string) (ret *template.Template, err error) {
