@@ -9,11 +9,16 @@
 		<script src="http://code.highcharts.com/highcharts.js"></script>
 	</head>
 	<body>
-		<a href="/">логи</a>
-		<h1>стата</h1>
-		<p><em>всего</em>: {{.Total}}</p>
-		{{range .Stat}}<em>{{.User}}</em>: {{printf "%.2f" .Count}}%<br/>{{else}}ничего ._.{{end}}
-		<div id="chart-container">
+		<div class="container">
+			<a href="/">логи</a>
+			<div class="clearfix"></div>
+			<div class="col col-userlist">
+				<h1>стата</h1>
+				<p><em>всего</em>: {{.Total}}</p>
+				{{range .Stat}}<em>{{.User}}</em>: {{printf "%.2f" .Count}}%<br/>{{else}}ничего ._.{{end}}
+			</div>
+			<div id="chart-container" class="col">
+			</div>
 		</div>
 	</body>
 	<script type="text/javascript">
