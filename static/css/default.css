@@ -6,12 +6,19 @@ html, body {
     font-family: 'Roboto', sans-serif;
 }
 
+.container {
+	width: 100%;
+}
+
 .col {
 	float: left;
 }
 
-.col-userlist {
+#col-userlist {
 	width: 20%;
+}
+
+#chart-container {
 }
 
 .clearfix {

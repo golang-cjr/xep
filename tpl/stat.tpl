@@ -9,10 +9,10 @@
 		<script src="http://code.highcharts.com/highcharts.js"></script>
 	</head>
 	<body>
+		<a href="/">логи</a>
+		<div class="clearfix"></div>
 		<div class="container">
-			<a href="/">логи</a>
-			<div class="clearfix"></div>
-			<div class="col col-userlist">
+			<div class="col" id="col-userlist">
 				<h1>стата</h1>
 				<p><em>всего</em>: {{.Total}}</p>
 				{{range .Stat}}<em>{{.User}}</em>: {{printf "%.2f" .Count}}%<br/>{{else}}ничего ._.{{end}}
@@ -29,6 +29,8 @@
 				y: parseFloat({{printf "%.2f" .Count}})
 				});
 		{{end}}
+		var item = document.querySelector("#chart-container");
+		item.style.height = document.querySelector("#col-userlist").clientHeight + "px";
 		var chart = new Highcharts.Chart({
 			chart: {
 				renderTo: 'chart-container',
