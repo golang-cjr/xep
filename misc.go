@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"github.com/kpmy/xippo/entity"
 	"github.com/kpmy/xippo/entity/dyn"
-	"github.com/kpmy/xippo/tools/dom"
+	"github.com/kpmy/ypk/dom"
 	"gopkg.in/xmlpath.v2"
 	"log"
 )
@@ -40,10 +40,22 @@ func conv(fn func(entity.Entity)) func(*bytes.Buffer) bool {
 						log.Println(err)
 					}
 				}
+			case dyn.PRESENCE:
+				fn(_e)
 			}
 		} else {
 			log.Println(err)
 		}
 		return
 	}
+}
+
+func firstByName(root dom.Element, name string) (ret dom.Element) {
+	for _, x := range root.Children() {
+		if e, ok := x.(dom.Element); ok && e.Name() == name {
+			ret = e
+			break
+		}
+	}
+	return
 }

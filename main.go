@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ivpusic/golog"
+	"reflect"
 	//	"github.com/skratchdot/open-golang/open"
 	"github.com/kpmy/xep/luaexecutor"
 	"github.com/kpmy/xep/muc"
@@ -150,6 +151,24 @@ func bot(st stream.Stream) error {
 						}
 					}
 				}
+			case dyn.Entity:
+				switch e.Type() {
+				case dyn.PRESENCE:
+					if from := e.Model().Attr("from"); from != "" && strings.HasPrefix(from, ROOM+"/") {
+						sender := strings.TrimPrefix(from, ROOM+"/")
+						um := muc.UserMapping()
+						user := sender
+						if u, ok := um[sender]; ok {
+							user, _ = u.(string)
+						}
+						if show := firstByName(e.Model(), "show"); e.Model().Attr("type") == "" && (show == nil || show.ChildrenCount() == 0) { //онлаен тип
+							//go func() { actors.With().Do(actors.C(doLuaAndPrint(`"` + user + `, насяльника..."`))).Run(st) }()
+							log.Println("ONLINE", user)
+						}
+					}
+				}
+			default:
+				log.Println(reflect.TypeOf(e))
 			}
 		}), 0)
 	}
