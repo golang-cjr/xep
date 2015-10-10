@@ -43,7 +43,8 @@ func neo_server(wg *sync.WaitGroup) {
 			data := &StatData{Total: total}
 			for u, c := range mm {
 				s := Stat{User: u}
-				s.Count = float64(c) / float64(total) * 100
+				s.Count = int64(c)
+				s.Perc = float64(c) / float64(total) * 100
 				data.Stat = append(data.Stat, s)
 			}
 			sort.Stable(data)

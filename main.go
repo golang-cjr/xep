@@ -46,7 +46,8 @@ type (
 
 	Stat struct {
 		User  string
-		Count float64
+		Count int64
+		Perc  float64
 	}
 
 	Post struct {

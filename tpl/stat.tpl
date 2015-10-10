@@ -14,8 +14,16 @@
 		<div class="container">
 			<div class="col" id="col-userlist">
 				<h1>стата</h1>
-				<p><em>всего</em>: {{.Total}}</p>
-				{{range .Stat}}<em>{{.User}}</em>: {{printf "%.2f" .Count}}%<br/>{{else}}ничего ._.{{end}}
+				<p><em>всего сообщений</em>: {{.Total}}</p>
+				<table>
+					{{range .Stat}}
+					<tr>
+						<td><em>{{.User}}</em></td>
+						<td>{{.Count}}</td>
+						<td>{{printf "%.2f" .Perc}}%</td>
+					</tr>
+					{{else}}<trd><tr>ничего ._.</tr></td>{{end}}
+				</table>
 			</div>
 			<div id="chart-container" class="col">
 			</div>
@@ -26,7 +34,7 @@
 		{{range .Stat}}
 			data.push({
 				name: "{{.User}}",
-				y: parseFloat({{printf "%.2f" .Count}})
+				y: parseFloat({{printf "%.2f" .Perc}})
 				});
 		{{end}}
 		var item = document.querySelector("#chart-container");
