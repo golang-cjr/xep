@@ -138,10 +138,6 @@ func bot(st stream.Stream) error {
 						executor.NewEvent(luaexecutor.IncomingEvent{"message",
 							map[string]string{"sender": sender, "body": e.Body}})
 						switch {
-						/*case strings.EqualFold(strings.TrimSpace(e.Body), "пщ"):
-						go func() {
-							actors.With(st).Do(doReply(sender, e.Type)).Run()
-						}() */
 						case strings.HasPrefix(e.Body, "lua>"):
 							go func(script string) {
 								actors.With().Do(actors.C(doLua(script))).Run(st)
@@ -165,6 +161,8 @@ func bot(st stream.Stream) error {
 						}
 						if show := firstByName(e.Model(), "show"); e.Model().Attr("type") == "" && (show == nil || show.ChildrenCount() == 0) { //онлаен тип
 							//go func() { actors.With().Do(actors.C(doLuaAndPrint(`"` + user + `, насяльника..."`))).Run(st) }()
+							executor.NewEvent(luaexecutor.IncomingEvent{"presence",
+								map[string]string{"sender": sender, "user": user}})
 							log.Println("ONLINE", user)
 						}
 					}
