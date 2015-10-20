@@ -1,7 +1,7 @@
-chat.onmessage("пщ", function(s, m)
-   if m == "пщ" then chat.send("пщ") end
+chat.addEventHandler("message", "пщ", function(evt)
+   if evt.body == "пщ" then chat.send("пщ") end
 end)
 
-chat.onmessage("зига", function(s, m)
-   if m == "o/" then chat.send("\\o,") end
+chat.addEventHandler("message", "зига", function(evt)
+   if evt.body == "o/" then chat.send("\\o,") end
 end)

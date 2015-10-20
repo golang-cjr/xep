@@ -135,7 +135,8 @@ func bot(st stream.Stream) error {
 						posts.Unlock()
 					}
 					if sender != ME {
-						executor.NewMessage(luaexecutor.IncomingMessage{sender, e.Body})
+						executor.NewEvent(luaexecutor.IncomingEvent{"message",
+							map[string]string{"sender": sender, "body": e.Body}})
 						switch {
 						/*case strings.EqualFold(strings.TrimSpace(e.Body), "пщ"):
 						go func() {
