@@ -2,7 +2,7 @@ package luaexecutor
 
 import (
 	"fmt"
-	"github.com/kpmy/go-lua"
+	"github.com/Shopify/go-lua"
 	"github.com/kpmy/xippo/c2s/stream"
 	"github.com/kpmy/xippo/entity"
 	"path/filepath"
