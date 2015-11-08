@@ -1,3 +1,5 @@
+os.exit = nil
+
 chat.addEventHandler("message", "пщ", function(evt)
    if evt.body == "пщ" then chat.send("пщ") end
 end)
