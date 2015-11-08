@@ -51,6 +51,9 @@ func NewExecutor(s stream.Stream) *Executor {
 			return otto.FalseValue()
 		}
 		val := call.Argument(2)
+		if !val.IsFunction() {
+			return otto.FalseValue()
+		}
 		handlers, ok := e.eventHandlers[evtName]
 		if !ok {
 			e.eventHandlers[evtName] = map[string]otto.Value{handlerName: val}
