@@ -181,25 +181,34 @@ func main() {
 	wg := new(sync.WaitGroup)
 	wg.Add(1)
 	go func() {
-		st := stream.New(s)
-		if err := stream.Dial(st); err == nil {
-			errHandler := func(err error) {
-				log.Fatal(err)
-			}
-			neg := &steps.Negotiation{}
-			actors.With().Do(actors.C(steps.Starter), errHandler).Do(actors.C(neg.Act()), errHandler).Run(st)
-			if neg.HasMechanism("PLAIN") {
-				auth := &steps.PlainAuth{Client: c, Pwd: pwd}
+		var redial func(error)
+
+		dial := func(st stream.Stream) {
+			log.Println("dialing ", s)
+
+			if err := stream.Dial(st); err == nil {
+				log.Println("dialed")
 				neg := &steps.Negotiation{}
-				bind := &steps.Bind{Rsrc: resource + strconv.Itoa(rand.New(rand.NewSource(time.Now().UnixNano())).Intn(500))}
-				actors.With().Do(actors.C(auth.Act()), errHandler).Do(actors.C(steps.Starter)).Do(actors.C(neg.Act())).Do(actors.C(bind.Act())).Do(actors.C(steps.Session)).Run(st)
-				actors.With().Do(actors.C(steps.InitialPresence)).Run(st)
-				actors.With().Do(actors.C(bot)).Run(st)
+				actors.With().Do(actors.C(steps.Starter), redial).Do(actors.C(neg.Act()), redial).Run(st)
+				if neg.HasMechanism("PLAIN") {
+					auth := &steps.PlainAuth{Client: c, Pwd: pwd}
+					neg := &steps.Negotiation{}
+					bind := &steps.Bind{Rsrc: resource + strconv.Itoa(rand.New(rand.NewSource(time.Now().UnixNano())).Intn(500))}
+					actors.With().Do(actors.C(auth.Act()), redial).Do(actors.C(steps.Starter)).Do(actors.C(neg.Act())).Do(actors.C(bind.Act())).Do(actors.C(steps.Session)).Run(st)
+					actors.With().Do(actors.C(steps.InitialPresence)).Run(st)
+					actors.With().Do(actors.C(bot)).Run(st)
+				}
+				wg.Done()
 			}
-			wg.Done()
-		} else {
-			log.Fatal(err)
 		}
+
+		redial = func(err error) {
+			log.Println(err)
+			<-time.After(time.Second)
+			dial(stream.New(s, redial))
+		}
+
+		redial(nil)
 	}()
 	go neo_server(wg)
 	go func() {
