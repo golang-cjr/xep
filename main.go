@@ -6,6 +6,7 @@ import (
 	"github.com/ivpusic/golog"
 	"reflect"
 	//	"github.com/skratchdot/open-golang/open"
+	"github.com/kpmy/xep/jsexecutor"
 	"github.com/kpmy/xep/luaexecutor"
 	"github.com/kpmy/xep/muc"
 	"github.com/kpmy/xippo/c2s/actors"
@@ -65,6 +66,7 @@ type (
 var posts *Posts
 
 var executor *luaexecutor.Executor
+var jsexec *jsexecutor.Executor
 
 func init() {
 	flag.StringVar(&user, "u", "goxep", "-u=user")
@@ -101,6 +103,13 @@ func doLua(script string) func(stream.Stream) error {
 	}
 }
 
+func doJS(script string) func(stream.Stream) error {
+	return func(s stream.Stream) error {
+		jsexec.Run(script)
+		return nil
+	}
+}
+
 func doLuaAndPrint(script string) func(stream.Stream) error {
 	return doLua(fmt.Sprintf(`chat.send(%s)`, script))
 }
@@ -117,6 +126,8 @@ func bot(st stream.Stream) error {
 	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME), entity.CHAT, "ПЩ сюды: https://github.com/kpmy/xep"))).Run(st)
 	executor = luaexecutor.NewExecutor(st)
 	executor.Start()
+	jsexec = jsexecutor.NewExecutor(st)
+	jsexec.Start()
 	for {
 		st.Ring(conv(func(_e entity.Entity) {
 			switch e := _e.(type) {
@@ -137,11 +148,17 @@ func bot(st stream.Stream) error {
 					if sender != ME {
 						executor.NewEvent(luaexecutor.IncomingEvent{"message",
 							map[string]string{"sender": sender, "body": e.Body}})
+						jsexec.NewEvent(jsexecutor.IncomingEvent{"message",
+							map[string]string{"sender": sender, "body": e.Body}})
 						switch {
 						case strings.HasPrefix(e.Body, "lua>"):
 							go func(script string) {
 								actors.With().Do(actors.C(doLua(script))).Run(st)
 							}(strings.TrimPrefix(e.Body, "lua>"))
+						case strings.HasPrefix(e.Body, "js>"):
+							go func(script string) {
+								actors.With().Do(actors.C(doJS(script))).Run(st)
+							}(strings.TrimPrefix(e.Body, "js>"))
 						case strings.HasPrefix(e.Body, "say"):
 							go func(script string) {
 								actors.With().Do(actors.C(doLuaAndPrint(script))).Run(st)
