@@ -208,13 +208,13 @@ func (exc *Executor) stopOnError(stop chan struct{}, errors chan error) {
 
 func ReadMessage(conn net.Conn, timeout time.Duration) (*Message, error) {
 	conn.SetReadDeadline(time.Now().Add(DefaultHeartbeatTimeout))
-	var lengthBuf [4]byte
+	var lengthBuf [2]byte
 	_, err := conn.Read(lengthBuf[:])
 	if err != nil {
 		return nil, err
 	}
 
-	length := int(binary.BigEndian.Uint32(lengthBuf[:]))
+	length := int(binary.BigEndian.Uint16(lengthBuf[:]))
 	if length > DefaultMessageLengthCap {
 		return nil, errors.New("message is too long")
 	}
@@ -250,8 +250,8 @@ func WriteMessage(conn net.Conn, timeout time.Duration, msg *Message) error {
 		return errors.New("message is too long")
 	}
 
-	var lengthBuf [4]byte
-	binary.BigEndian.PutUint32(lengthBuf[:], uint32(length))
+	var lengthBuf [2]byte
+	binary.BigEndian.PutUint16(lengthBuf[:], uint16(length))
 
 	conn.SetWriteDeadline(time.Now().Add(timeout))
 	_, err = conn.Write(lengthBuf[:])
