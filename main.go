@@ -6,6 +6,7 @@ import (
 	"github.com/ivpusic/golog"
 	"reflect"
 	//	"github.com/skratchdot/open-golang/open"
+	"github.com/kpmy/xep/hookexecutor"
 	"github.com/kpmy/xep/jsexecutor"
 	"github.com/kpmy/xep/luaexecutor"
 	"github.com/kpmy/xep/muc"
@@ -67,6 +68,7 @@ var posts *Posts
 
 var executor *luaexecutor.Executor
 var jsexec *jsexecutor.Executor
+var hookExec *hookexecutor.Executor
 
 func init() {
 	flag.StringVar(&user, "u", "goxep", "-u=user")
@@ -128,6 +130,8 @@ func bot(st stream.Stream) error {
 	executor.Start()
 	jsexec = jsexecutor.NewExecutor(st)
 	jsexec.Start()
+	hookExec = hookexecutor.NewExecutor(st)
+	hookExec.Start()
 	for {
 		st.Ring(conv(func(_e entity.Entity) {
 			switch e := _e.(type) {
@@ -149,6 +153,8 @@ func bot(st stream.Stream) error {
 						executor.NewEvent(luaexecutor.IncomingEvent{"message",
 							map[string]string{"sender": sender, "body": e.Body}})
 						jsexec.NewEvent(jsexecutor.IncomingEvent{"message",
+							map[string]string{"sender": sender, "body": e.Body}})
+						hookExec.NewEvent(hookexecutor.IncomingEvent{"message",
 							map[string]string{"sender": sender, "body": e.Body}})
 						switch {
 						case strings.HasPrefix(e.Body, "lua>"):
