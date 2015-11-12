@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	DefaultAddr             = "127.0.0.1:1984"
+	DefaultAddr             = "0.0.0.0:1984"
 	DefaultInboxBufferSize  = 4
 	DefaultOutboxBufferSize = 4
 	DefaultClientBufferSize = 8
@@ -89,7 +89,11 @@ func (exc *Executor) Run(cmd string) {
 }
 
 func (exc *Executor) NewEvent(e IncomingEvent) {
-	exc.inbox <- &e
+	select {
+	case exc.inbox <- &e:
+	default:
+		log.Println("executor is blocked")
+	}
 }
 
 func stopPanic(exc *Executor, where string, callback func(err error)) {
