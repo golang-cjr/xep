@@ -8,7 +8,6 @@ import (
 
 const dbUrl = "http://127.0.0.1:5984"
 const dbName = "stats"
-const docId = "total"
 
 type CStatDoc struct {
 	Total int
@@ -17,7 +16,7 @@ type CStatDoc struct {
 
 var db *couchdb.DB
 
-func GetStat() (ret *CStatDoc, err error) {
+func GetStat(docId string) (ret *CStatDoc, err error) {
 	ret = &CStatDoc{}
 	if err = db.Get(docId, ret, nil); err == nil {
 		if ret.Data == nil {
@@ -25,13 +24,13 @@ func GetStat() (ret *CStatDoc, err error) {
 		}
 	} else if couchdb.NotFound(err) {
 		if _, err = db.Put(docId, ret, ""); err == nil {
-			ret, err = GetStat()
+			ret, err = GetStat(docId)
 		}
 	}
 	return
 }
 
-func SetStat(old *CStatDoc) {
+func SetStat(docId string, old *CStatDoc) {
 	if rev, err := db.Rev(docId); err == nil {
 		if _, err = db.Put(docId, old, rev); err != nil {
 			log.Println(err)
@@ -39,15 +38,31 @@ func SetStat(old *CStatDoc) {
 	}
 }
 
+const countId = "count"
+const totalId = "total"
+
 func IncStat(user string) {
-	if s, err := GetStat(); err == nil {
+	if s, err := GetStat(totalId); err == nil {
 		if _, ok := s.Data[user]; ok {
 			s.Data[user] = s.Data[user] + 1
 		} else {
 			s.Data[user] = 1
 		}
 		s.Total++
-		SetStat(s)
+		SetStat(totalId, s)
+	}
+}
+
+func IncStatLen(user, msg string) {
+	count := len([]rune(msg))
+	if s, err := GetStat(countId); err == nil {
+		if _, ok := s.Data[user]; ok {
+			s.Data[user] = s.Data[user] + count
+		} else {
+			s.Data[user] = count
+		}
+		s.Total += count
+		SetStat(countId, s)
 	}
 }
 

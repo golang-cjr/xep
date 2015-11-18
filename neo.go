@@ -9,6 +9,24 @@ import (
 	"sync"
 )
 
+type (
+	TplData struct {
+		Count *StatData
+		Total *StatData
+	}
+
+	StatData struct {
+		Total int
+		Stat  []Stat
+	}
+
+	Stat struct {
+		User  string
+		Count int64
+		Perc  float64
+	}
+)
+
 func neo_server(wg *sync.WaitGroup) {
 	app := neo.App()
 	app.Use(logger.Log)
@@ -35,23 +53,34 @@ func neo_server(wg *sync.WaitGroup) {
 		}
 	})
 	app.Get("/stat", func(ctx *neo.Ctx) (int, error) {
-		var s *CStatDoc
-		var err error
-		if s, err = GetStat(); err == nil {
-			mm := s.Data
-			total := s.Total
-			data := &StatData{Total: total}
+
+		conv := func(t *CStatDoc) (td *StatData) {
+			mm := t.Data
+			total := t.Total
+			td = &StatData{Total: total}
 			for u, c := range mm {
 				s := Stat{User: u}
 				s.Count = int64(c)
 				s.Perc = float64(c) / float64(total) * 100
-				data.Stat = append(data.Stat, s)
+				td.Stat = append(td.Stat, s)
 			}
-			sort.Stable(data)
-			var t *template.Template
-			if t, err = loadTpl("stat"); t != nil {
-				t.Execute(ctx.Res, data)
-				return 200, nil
+			sort.Stable(td)
+			return
+		}
+
+		var t, c *CStatDoc
+		var err error
+		if t, err = GetStat(totalId); err == nil {
+			if c, err = GetStat(countId); err == nil {
+
+				data := &TplData{}
+				data.Count = conv(c)
+				data.Total = conv(t)
+				var tpl *template.Template
+				if tpl, err = loadTpl("stat"); tpl != nil {
+					tpl.Execute(ctx.Res, data)
+					return 200, nil
+				}
 			}
 		}
 		return 500, err

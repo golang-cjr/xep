@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"github.com/ivpusic/golog"
-	"reflect"
-	//	"github.com/skratchdot/open-golang/open"
 	"github.com/kpmy/xep/hookexecutor"
+	"github.com/skratchdot/open-golang/open"
+	"reflect"
 	//	"github.com/kpmy/xep/jsexecutor"
 	//	"github.com/kpmy/xep/luaexecutor"
 	"github.com/kpmy/xep/muc"
@@ -40,17 +40,6 @@ var (
 )
 
 type (
-	StatData struct {
-		Total int
-		Stat  []Stat
-	}
-
-	Stat struct {
-		User  string
-		Count int64
-		Perc  float64
-	}
-
 	Post struct {
 		User string
 		Nick string
@@ -147,6 +136,7 @@ func bot(st stream.Stream) error {
 						posts.Lock()
 						posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
 						IncStat(user)
+						IncStatLen(user, e.Body)
 						posts.Unlock()
 					}
 					if sender != ME {
@@ -244,7 +234,7 @@ func main() {
 	go func() {
 		time.Sleep(time.Duration(time.Millisecond * 200))
 		//open.Start("http://localhost:3000")
-		//open.Start("http://localhost:3000/stat")
+		open.Start("http://localhost:3000/stat")
 	}()
 	wg.Wait()
 }

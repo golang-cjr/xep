@@ -14,15 +14,29 @@
 		<div class="container">
 			<div class="col" id="col-userlist">
 				<h1>стата</h1>
-				<p><em>всего сообщений</em>: {{.Total}}</p>
+				<p><strong>Всего</strong> (сообщений/символов): {{.Total.Total}}/{{.Count.Total}}</p>
 				<table>
-					{{range .Stat}}
+					<tr>
+						<td><strong>Сообщения</strong></td>
+					</tr>
+					{{range .Total.Stat}}
 					<tr>
 						<td><em>{{.User}}</em></td>
 						<td>{{.Count}}</td>
 						<td>{{printf "%.2f" .Perc}}%</td>
 					</tr>
 					{{else}}<trd><tr>ничего ._.</tr></td>{{end}}
+					<tr><td/></tr>
+					<tr>
+						<td><strong>Символы</strong></td>
+					</tr>
+					{{range .Count.Stat}}
+					<tr>
+						<td><em>{{.User}}</em></td>
+						<td>{{.Count}}</td>
+						<td>{{printf "%.2f" .Perc}}%</td>
+					</tr>
+					{{end}}
 				</table>
 			</div>
 			<div id="chart-container" class="col">
@@ -31,7 +45,7 @@
 	</body>
 	<script type="text/javascript">
 		var data = [];
-		{{range .Stat}}
+		{{range .Total.Stat}}
 			data.push({
 				name: "{{.User}}",
 				y: parseFloat({{printf "%.2f" .Perc}})
@@ -45,7 +59,7 @@
 				type: 'pie'
 			},
 			title: {
-				text: "Стата"
+				text: "Сообщения"
 			},
 			series: [{
 				name: "Пиздливость",
