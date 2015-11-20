@@ -59,7 +59,7 @@ func doReply(sender string, typ entity.MessageType, body string) func(stream.Str
 }
 
 func bot(st stream.Stream) error {
-	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME), entity.CHAT, "http:/d.ocsf.in/stat | https://github.com/kpmy/xep"))).Run(st)
+	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME), entity.CHAT, "http://d.ocsf.in/stat | https://github.com/kpmy/xep"))).Run(st)
 	hookExec = hookexecutor.NewExecutor(st)
 	hookExec.Start()
 	for {
