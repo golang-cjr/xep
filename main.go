@@ -4,10 +4,7 @@ import (
 	"flag"
 	"github.com/ivpusic/golog"
 	"github.com/kpmy/xep/hookexecutor"
-	"github.com/skratchdot/open-golang/open"
-	"reflect"
-	//	"github.com/kpmy/xep/jsexecutor"
-	//	"github.com/kpmy/xep/luaexecutor"
+	//"github.com/skratchdot/open-golang/open"
 	"github.com/kpmy/xep/muc"
 	"github.com/kpmy/xippo/c2s/actors"
 	"github.com/kpmy/xippo/c2s/actors/steps"
@@ -15,11 +12,9 @@ import (
 	"github.com/kpmy/xippo/entity"
 	"github.com/kpmy/xippo/entity/dyn"
 	"github.com/kpmy/xippo/units"
-	"html/template"
 	"log"
 	"math/rand"
-	"os"
-	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,23 +34,6 @@ var (
 	neo_log  = golog.GetLogger("application")
 )
 
-type (
-	Post struct {
-		User string
-		Nick string
-		Msg  string
-	}
-
-	Posts struct {
-		data []Post
-		sync.Mutex
-	}
-)
-
-var posts *Posts
-
-//var executor *luaexecutor.Executor
-//var jsexec *jsexecutor.Executor
 var hookExec *hookexecutor.Executor
 
 func init() {
@@ -67,13 +45,7 @@ func init() {
 	posts = new(Posts)
 }
 
-func (d *StatData) Len() int { return len(d.Stat) }
-
-func (d *StatData) Less(i, j int) bool { return d.Stat[i].Count > d.Stat[j].Count }
-
-func (d *StatData) Swap(i, j int) { d.Stat[i], d.Stat[j] = d.Stat[j], d.Stat[i] }
-
-func doReply(sender string, typ entity.MessageType) func(stream.Stream) error {
+func doReply(sender string, typ entity.MessageType, body string) func(stream.Stream) error {
 	return func(s stream.Stream) error {
 		m := entity.MSG(typ)
 		if typ != entity.GROUPCHAT {
@@ -81,44 +53,13 @@ func doReply(sender string, typ entity.MessageType) func(stream.Stream) error {
 		} else {
 			m.To = ROOM
 		}
-		m.Body = "пщ"
+		m.Body = body
 		return s.Write(entity.Encode(dyn.NewMessage(m.Type, m.To, m.Body)))
 	}
 }
 
-/* func doLua(script string) func(stream.Stream) error {
-	return func(s stream.Stream) error {
-		executor.Run(script)
-		return nil
-	}
-}
-
-func doJS(script string) func(stream.Stream) error {
-	return func(s stream.Stream) error {
-		jsexec.Run(script)
-		return nil
-	}
-}
-
-func doLuaAndPrint(script string) func(stream.Stream) error {
-	return doLua(fmt.Sprintf(`chat.send(%s)`, script))
-}
-*/
-
-func loadTpl(name string) (ret *template.Template, err error) {
-	tn := filepath.Join("tpl", name+".tpl")
-	if _, err = os.Stat(tn); err == nil {
-		ret, err = template.ParseFiles(tn)
-	}
-	return
-}
-
 func bot(st stream.Stream) error {
-	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME), entity.CHAT, "ПЩ сюды: https://github.com/kpmy/xep"))).Run(st)
-	//executor = luaexecutor.NewExecutor(st)
-	//executor.Start()
-	//jsexec = jsexecutor.NewExecutor(st)
-	//jsexec.Start()
+	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME), entity.CHAT, "http:/d.ocsf.in/stat | https://github.com/kpmy/xep"))).Run(st)
 	hookExec = hookexecutor.NewExecutor(st)
 	hookExec.Start()
 	for {
@@ -134,39 +75,29 @@ func bot(st stream.Stream) error {
 					}
 					if e.Type == entity.GROUPCHAT {
 						posts.Lock()
+						if sender != ME {
+							IncStat(user)
+							IncStatLen(user, e.Body)
+						}
 						posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
-						IncStat(user)
-						IncStatLen(user, e.Body)
 						posts.Unlock()
 					}
 					if sender != ME {
-						/*
-							executor.NewEvent(luaexecutor.IncomingEvent{"message",
-														map[string]string{"sender": sender, "body": e.Body}})
-													jsexec.NewEvent(jsexecutor.IncomingEvent{"message",
-														map[string]string{"sender": sender, "body": e.Body}}) */
-						hookExec.NewEvent(hookexecutor.IncomingEvent{"message",
-							map[string]string{"sender": sender, "body": e.Body}})
+						hookExec.NewEvent(hookexecutor.IncomingEvent{"message", map[string]string{"sender": sender, "body": e.Body}})
 						switch {
 						case strings.EqualFold(strings.TrimSpace(e.Body), "пщ"):
 							go func() {
-								actors.With().Do(actors.C(doReply(sender, e.Type))).Run(st)
+								actors.With().Do(actors.C(doReply(sender, e.Type, "пщ!"))).Run(st)
 							}()
+						case strings.HasPrefix(e.Body, "xep"):
+							body := strings.TrimPrefix(e.Body, "xep")
+							body = strings.TrimSpace(body)
+							if body != "" {
+								go func() {
+									actors.With().Do(actors.C(doReply(sender, entity.GROUPCHAT, body))).Run(st)
+								}()
+							}
 						}
-						/*switch {
-						case strings.HasPrefix(e.Body, "lua>"):
-							go func(script string) {
-								actors.With().Do(actors.C(doLua(script))).Run(st)
-							}(strings.TrimPrefix(e.Body, "lua>"))
-						case strings.HasPrefix(e.Body, "js>"):
-							go func(script string) {
-								actors.With().Do(actors.C(doJS(script))).Run(st)
-							}(strings.TrimPrefix(e.Body, "js>"))
-						case strings.HasPrefix(e.Body, "say"):
-							go func(script string) {
-								actors.With().Do(actors.C(doLuaAndPrint(script))).Run(st)
-							}(strings.TrimSpace(strings.TrimPrefix(e.Body, "say")))
-						} */
 					}
 				}
 			case dyn.Entity:
@@ -180,10 +111,7 @@ func bot(st stream.Stream) error {
 							user, _ = u.(string)
 						}
 						if show := firstByName(e.Model(), "show"); e.Model().Attr("type") == "" && (show == nil || show.ChildrenCount() == 0) { //онлаен тип
-							//go func() { actors.With().Do(actors.C(doLuaAndPrint(`"` + user + `, насяльника..."`))).Run(st) }()
-							/* executor.NewEvent(luaexecutor.IncomingEvent{"presence",
-							map[string]string{"sender": sender, "user": user}}) */
-							log.Println("ONLINE", user)
+							hookExec.NewEvent(hookexecutor.IncomingEvent{"presence", map[string]string{"sender": sender, "user": user}})
 						}
 					}
 				}
@@ -223,7 +151,9 @@ func main() {
 		}
 
 		redial = func(err error) {
-			log.Println(err)
+			if err != nil {
+				log.Println(err)
+			}
 			<-time.After(time.Second)
 			dial(stream.New(s, redial))
 		}
@@ -234,7 +164,7 @@ func main() {
 	go func() {
 		time.Sleep(time.Duration(time.Millisecond * 200))
 		//open.Start("http://localhost:3000")
-		open.Start("http://localhost:3000/stat")
+		//open.Start("http://localhost:3000/stat")
 	}()
 	wg.Wait()
 }

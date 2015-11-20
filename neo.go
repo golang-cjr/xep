@@ -5,6 +5,8 @@ import (
 	"github.com/ivpusic/neo-cors"
 	"github.com/ivpusic/neo/middlewares/logger"
 	"html/template"
+	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 )
@@ -26,6 +28,20 @@ type (
 		Perc  float64
 	}
 )
+
+func (d *StatData) Len() int { return len(d.Stat) }
+
+func (d *StatData) Less(i, j int) bool { return d.Stat[i].Count > d.Stat[j].Count }
+
+func (d *StatData) Swap(i, j int) { d.Stat[i], d.Stat[j] = d.Stat[j], d.Stat[i] }
+
+func loadTpl(name string) (ret *template.Template, err error) {
+	tn := filepath.Join("tpl", name+".tpl")
+	if _, err = os.Stat(tn); err == nil {
+		ret, err = template.ParseFiles(tn)
+	}
+	return
+}
 
 func neo_server(wg *sync.WaitGroup) {
 	app := neo.App()

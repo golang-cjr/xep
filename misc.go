@@ -21,11 +21,11 @@ func conv(fn func(entity.Entity)) func(*bytes.Buffer) bool {
 
 	return func(in *bytes.Buffer) (done bool) {
 		done = true
-		log.Println("IN")
-		log.Println(string(in.Bytes()))
-		log.Println()
-		if p, err := xmlpath.Parse(bytes.NewBuffer(in.Bytes())); err == nil {
-			log.Println("xpath", p.String())
+		//log.Println("IN")
+		//log.Println(string(in.Bytes()))
+		//log.Println()
+		if _, err := xmlpath.Parse(bytes.NewBuffer(in.Bytes())); err == nil {
+
 		} else {
 			log.Println(err)
 		}
