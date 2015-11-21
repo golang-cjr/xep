@@ -69,7 +69,6 @@
 			});
 	</script>
 	<script>
-	<script>
 		$(function(){
 				var d = new Date();
 				$("#today").attr("href", "http://chatlogs.jabber.ru/golang@conference.jabber.ru/"+d.getFullYear()+"/"+(d.getMonth() + 1)+"/"+d.getDate()+".html");
