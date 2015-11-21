@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/ivpusic/golog"
 	"github.com/ivpusic/neo"
 	"github.com/ivpusic/neo-cors"
 	"github.com/ivpusic/neo/middlewares/logger"
@@ -28,6 +29,8 @@ type (
 		Perc  float64
 	}
 )
+
+var neo_log = golog.GetLogger("application")
 
 func (d *StatData) Len() int { return len(d.Stat) }
 
