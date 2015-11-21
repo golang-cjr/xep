@@ -4,7 +4,6 @@ import (
 	"flag"
 	//"github.com/skratchdot/open-golang/open"
 	"log"
-
 	"sync"
 	"time"
 )
