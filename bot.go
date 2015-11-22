@@ -17,7 +17,7 @@ import (
 var hookExec *hookexecutor.Executor
 
 func bot(st stream.Stream) error {
-	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME), entity.CHAT, "http://d.ocsf.in/stat | https://github.com/kpmy/xep"))).Run(st)
+	actors.With().Do(actors.C(steps.PresenceTo(units.Bare2Full(ROOM, ME), entity.CHAT, "http://d.ocsf.in/stat | https://github.com/golang-cjr/xep"))).Run(st)
 	hookExec = hookexecutor.NewExecutor(st)
 	hookExec.Start()
 	for {
