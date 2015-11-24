@@ -48,8 +48,9 @@ type clientReply struct {
 }
 
 type clientInfo struct {
-	inbox chan *Message
-	stop  chan struct{}
+	inbox             chan *Message
+	stop              chan struct{}
+	trafficController *TrafficController
 }
 
 type Executor struct {
@@ -105,7 +106,7 @@ func (exc *Executor) NewEvent(e IncomingEvent) {
 	select {
 	case exc.inbox <- &e:
 	default:
-		log.Println("executor is blocked")
+		exc.logger.Println("executor is blocked")
 	}
 }
 
@@ -345,6 +346,8 @@ func (exc *Executor) createClient() (inbox, outbox chan *Message) {
 	return r.info.inbox, r.outbox
 }
 
+var defaultShaper = ShaperConfig{RatePerMinute: 10, RatePer10sec: 5}
+
 func (exc *Executor) processEvents() {
 	defer stopPanic(exc, "processEvents", func(_ error) { exc.processEvents() })
 
@@ -359,10 +362,15 @@ func (exc *Executor) processEvents() {
 			exc.logger.Printf("ignoring cmd: '%s'", cmd)
 		case req := <-exc.clientRequests:
 			outbox := exc.outbox
+			inbox := make(chan *Message, DefaultClientBufferSize)
+			tcOutbox := make(chan *Message)
 
+			tc := NewTrafficController(defaultShaper, nil, tcOutbox, outbox, exc.logger)
+			tc.Start()
 			info := &clientInfo{
-				inbox: make(chan *Message, DefaultClientBufferSize),
-				stop:  make(chan struct{}),
+				inbox:             inbox,
+				stop:              make(chan struct{}),
+				trafficController: tc,
 			}
 
 			exc.clients = append(exc.clients, info)
