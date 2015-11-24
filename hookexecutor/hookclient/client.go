@@ -20,6 +20,7 @@ type Client struct {
 
 	prefixHandlers []stringMatchHandler
 	substrHandlers []stringMatchHandler
+	errorHandler   Handler
 
 	logger *log.Logger
 	stop   chan struct{}
@@ -43,6 +44,7 @@ type stringMatchHandler struct {
 func NewClient(addr string) *Client {
 	return &Client{
 		addr,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -94,7 +96,7 @@ func (c *Client) run() {
 			}
 
 			if msg.Type == "ping" {
-				pong := &hookexecutor.Message{&hookexecutor.IncomingEvent{"pong", nil}, -1}
+				pong := &hookexecutor.Message{&hookexecutor.IncomingEvent{"pong", nil}, -1, ""}
 				outbox <- pong
 				continue
 			}
@@ -112,6 +114,18 @@ func (c *Client) run() {
 
 func (c *Client) selectHandlers(msg *hookexecutor.Message) []Handler {
 	handlers := []Handler{}
+
+	if msg.Error != "" {
+		if c.errorHandler != nil {
+			return []Handler{c.errorHandler}
+		} else {
+			logger := func(msg *hookexecutor.Message) (*hookexecutor.Message, error) {
+				c.logger.Printf("remote failure: %s", msg.String())
+				return nil, nil
+			}
+			return []Handler{HandlerFunc(logger)}
+		}
+	}
 
 	text := msg.Data["body"]
 	for _, prefixHandler := range c.prefixHandlers {
@@ -207,4 +221,8 @@ func (c *Client) HandlePrefix(prefix string, handler Handler) {
 
 func (c *Client) HandleSubstr(needle string, handler Handler) {
 	c.substrHandlers = append(c.substrHandlers, stringMatchHandler{needle, handler})
+}
+
+func (c *Client) HandleError(handler Handler) {
+	c.errorHandler = handler
 }

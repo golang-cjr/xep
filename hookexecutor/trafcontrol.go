@@ -89,19 +89,20 @@ func (tc *TrafficController) run() {
 func checkRateLimit(tsLog []*TrafficEvent, event *TrafficEvent, limit int, period time.Duration) rateLimitCheck {
 	target := time.Now().Add(-period)
 	total := 0
+
 	for i := len(tsLog) - 1; i > 0; i-- {
 		item := tsLog[i]
-		if target.After(tsLog[i].timestamp) {
+		if target.After(item.timestamp) {
 			break
 		}
 
 		total += item.score
-		if total > limit {
+		if total >= limit {
 			return RLOverflow
 		}
 	}
 
-	if total+event.score < limit {
+	if total+event.score <= limit {
 		return RLOK
 	} else {
 		return RLPartialOverflow
@@ -113,7 +114,7 @@ func addToLog(tsLog []*TrafficEvent, event *TrafficEvent, period time.Duration) 
 
 	first := time.Now().Add(-period)
 	for idx, event := range tsLog {
-		if first.After(event.timestamp) {
+		if first.Before(event.timestamp) {
 			return tsLog[idx:]
 		}
 	}

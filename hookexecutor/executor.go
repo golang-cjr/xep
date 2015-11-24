@@ -20,7 +20,7 @@ const (
 	DefaultAddr             = "0.0.0.0:1984"
 	DefaultJSONAddr         = "0.0.0.0:1985"
 	DefaultInboxBufferSize  = 4
-	DefaultOutboxBufferSize = 4
+	DefaultOutboxBufferSize = 10
 	DefaultClientBufferSize = 8
 	DefaultHeartbeatTrigger = 5 * time.Second
 	DefaultHeartbeatTimeout = 10 * time.Second
@@ -29,6 +29,8 @@ const (
 	DefaultDelayForMessages = 1 * time.Second
 )
 
+var defaultShaper = ShaperConfig{RatePerMinute: 10, RatePer10sec: 3}
+
 type IncomingEvent struct {
 	Type string
 	Data map[string]string
@@ -36,7 +38,24 @@ type IncomingEvent struct {
 
 type Message struct {
 	*IncomingEvent
-	ID int
+	ID    int
+	Error string
+}
+
+func (m *Message) String() string {
+	var handle = &codec.JsonHandle{}
+	var buf []byte
+	var encoder = codec.NewEncoderBytes(&buf, handle)
+	err := encoder.Encode(m.Data)
+	if err != nil {
+		buf = []byte("<malformed data>")
+	}
+
+	if m.Error != "" {
+		return fmt.Sprintf("err_msg of %s [%d]: '%s', content: %s", m.Type, m.ID, m.Error, string(buf))
+	} else {
+		return fmt.Sprintf("msg of %s [%d] content: %s", m.Type, m.ID, string(buf))
+	}
 }
 
 type MessageWriter func(conn net.Conn, timeout time.Duration, msg *Message) error
@@ -202,7 +221,7 @@ func (exc *Executor) clientWriter(inbox chan *Message, write MessageWriter, conn
 				return
 			}
 		case <-heartbeatTicker.C:
-			ping := &Message{&IncomingEvent{"ping", nil}, -1}
+			ping := &Message{&IncomingEvent{"ping", nil}, -1, ""}
 			err := write(conn, DefaultHeartbeatTimeout, ping)
 			if err != nil {
 				exc.logger.Printf("failed to write ping message: %v", err)
@@ -346,26 +365,25 @@ func (exc *Executor) createClient() (inbox, outbox chan *Message) {
 	return r.info.inbox, r.outbox
 }
 
-var defaultShaper = ShaperConfig{RatePerMinute: 10, RatePer10sec: 5}
-
 func (exc *Executor) processEvents() {
 	defer stopPanic(exc, "processEvents", func(_ error) { exc.processEvents() })
 
 	for {
 		select {
 		case msg := <-exc.inbox:
-			message := &Message{msg, exc.counter}
+			message := &Message{msg, exc.counter, ""}
 			exc.sendMessage(message)
 			exc.counter++
 		case cmd := <-exc.cmdInbox:
 			// TODO(mechmind): handle cmds
 			exc.logger.Printf("ignoring cmd: '%s'", cmd)
 		case req := <-exc.clientRequests:
-			outbox := exc.outbox
 			inbox := make(chan *Message, DefaultClientBufferSize)
 			tcOutbox := make(chan *Message)
 
-			tc := NewTrafficController(defaultShaper, nil, tcOutbox, outbox, exc.logger)
+			rejecter := simpleRejecter(inbox, exc.logger)
+
+			tc := NewTrafficController(defaultShaper, rejecter, tcOutbox, exc.outbox, exc.logger)
 			tc.Start()
 			info := &clientInfo{
 				inbox:             inbox,
@@ -374,7 +392,18 @@ func (exc *Executor) processEvents() {
 			}
 
 			exc.clients = append(exc.clients, info)
-			req <- clientReply{outbox, info}
+			req <- clientReply{tcOutbox, info}
+		}
+	}
+}
+
+func simpleRejecter(inbox chan *Message, logger *log.Logger) Rejecter {
+	return func(msg *Message, reason string) {
+		msg.Error = reason
+		logger.Printf("rejecting message: %s", msg.String())
+		select {
+		case inbox <- msg:
+		default:
 		}
 	}
 }
