@@ -25,6 +25,8 @@ const (
 	DefaultHeartbeatTrigger = 5 * time.Second
 	DefaultHeartbeatTimeout = 10 * time.Second
 	DefaultMessageLengthCap = 4 * 1024
+
+	DefaultDelayForMessages = 1 * time.Second
 )
 
 type IncomingEvent struct {
@@ -60,6 +62,7 @@ type Executor struct {
 	outbox         chan *Message
 	cmdInbox       chan string
 	clientRequests chan chan clientReply
+	stop           chan struct{}
 
 	clients []*clientInfo
 	counter int
@@ -75,6 +78,7 @@ func NewExecutor(s stream.Stream) *Executor {
 		make(chan *Message, DefaultOutboxBufferSize),
 		make(chan string, DefaultInboxBufferSize),
 		make(chan chan clientReply, DefaultInboxBufferSize),
+		make(chan struct{}),
 		nil,
 		0,
 	}
@@ -84,11 +88,13 @@ func (exc *Executor) Start() {
 	go exc.ListenAndServe(DefaultAddr)
 	go exc.ListenAndServeJSON(DefaultJSONAddr)
 	go exc.processEvents()
+	go exc.sendToBot()
 }
 
 func (exc *Executor) Stop() {
 	close(exc.inbox)
 	close(exc.cmdInbox)
+	close(exc.stop)
 }
 
 func (exc *Executor) Run(cmd string) {
@@ -361,8 +367,6 @@ func (exc *Executor) processEvents() {
 
 			exc.clients = append(exc.clients, info)
 			req <- clientReply{outbox, info}
-		case msg := <-exc.outbox:
-			exc.SendMessageToBot(msg)
 		}
 	}
 }
@@ -397,6 +401,19 @@ func (exc *Executor) sendMessage(msg *Message) {
 	}
 
 	exc.clients = aliveClients
+}
+
+func (exc *Executor) sendToBot() {
+	defer stopPanic(exc, "sendToBot", func(_ error) { go exc.sendToBot() })
+	for {
+		select {
+		case msg := <-exc.outbox:
+			exc.SendMessageToBot(msg)
+			time.Sleep(DefaultDelayForMessages)
+		case <-exc.stop:
+			return
+		}
+	}
 }
 
 func (exc *Executor) SendMessageToBot(msg *Message) {
