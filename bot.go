@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/kpmy/xep/hookexecutor"
-	"github.com/kpmy/xep/muc"
+	"github.com/golang-cjr/xep/hookexecutor"
+	"github.com/golang-cjr/xep/muc"
 	"github.com/kpmy/xippo/c2s/actors"
 	"github.com/kpmy/xippo/c2s/actors/steps"
 	"github.com/kpmy/xippo/c2s/stream"

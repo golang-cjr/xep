@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kpmy/xep/hookexecutor"
+	"github.com/golang-cjr/xep/hookexecutor"
 )
 
 const (
