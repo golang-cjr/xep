@@ -39,7 +39,7 @@ type IncomingEvent struct {
 type Message struct {
 	*IncomingEvent
 	ID    int
-	Error string
+	Error string `json:",omitempty"`
 }
 
 func (m *Message) String() string {
