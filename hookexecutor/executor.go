@@ -382,8 +382,9 @@ func (exc *Executor) processEvents() {
 			tcOutbox := make(chan *Message)
 
 			rejecter := simpleRejecter(inbox, exc.logger)
+			acceptor := simpleAcceptor(inbox)
 
-			tc := NewTrafficController(defaultShaper, rejecter, tcOutbox, exc.outbox, exc.logger)
+			tc := NewTrafficController(defaultShaper, rejecter, acceptor, tcOutbox, exc.outbox, exc.logger)
 			tc.Start()
 			info := &clientInfo{
 				inbox:             inbox,
@@ -408,6 +409,15 @@ func simpleRejecter(inbox chan *Message, logger *log.Logger) Rejecter {
 	}
 }
 
+func simpleAcceptor(inbox chan *Message) Acceptor {
+	return func(msg *Message) {
+		ack := &Message{IncomingEvent: &IncomingEvent{Type: "ack"}, ID: msg.ID}
+		select {
+		case inbox <- ack:
+		default:
+		}
+	}
+}
 func (exc *Executor) sendMessage(msg *Message) {
 	deadClientIDs := []int{}
 

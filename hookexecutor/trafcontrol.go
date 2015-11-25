@@ -25,6 +25,7 @@ type TrafficEvent struct {
 }
 
 type Rejecter func(*Message, string)
+type Acceptor func(*Message)
 
 type TrafficController struct {
 	config ShaperConfig
@@ -32,12 +33,13 @@ type TrafficController struct {
 	input  chan *Message
 	output chan *Message
 	reject Rejecter
+	accept Acceptor
 
 	logger *log.Logger
 }
 
-func NewTrafficController(config ShaperConfig, reject Rejecter, input, output chan *Message, logger *log.Logger) *TrafficController {
-	return &TrafficController{config, input, output, reject, logger}
+func NewTrafficController(config ShaperConfig, reject Rejecter, accept Acceptor, input, output chan *Message, logger *log.Logger) *TrafficController {
+	return &TrafficController{config, input, output, reject, accept, logger}
 }
 
 func (tc *TrafficController) Start() {
@@ -77,6 +79,7 @@ func (tc *TrafficController) run() {
 
 		select {
 		case tc.output <- msg:
+			tc.accept(msg)
 		default:
 			tc.reject(msg, "busy")
 			continue
