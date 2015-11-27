@@ -1,6 +1,8 @@
 [![Build Status](https://drone.io/github.com/kpmy/xep/status.png)](https://drone.io/github.com/kpmy/xep/latest)
+
 # xep
-golang@c.j.r chat-bot
+
+[golang@c.j.r](https://github.com/golang-cjr) [c](http://d.ocsf.in)[h](http://d.ocsf.in/stat)[a](http://chatlogs.jabber.ru/golang@conference.jabber.ru/)[t](https://github.com/golang-cjr)-[b](http://d.ocsf.in)[o](http://d.ocsf.in/stat)[t](http://chatlogs.jabber.ru/golang@conference.jabber.ru/)
 
 Bot provides a remote chat API, for sake of microservice flamewar.
 
@@ -32,9 +34,8 @@ Bot limits the rate of messages (scored by lines) client can deliver to conferen
 per-minute limit of lines and soft per-10-second limit. Current default
 limit can be found in hookexecutor/executor.go. When client exceeds his quota
 bot will reject messages. When bot rejects a message it sends it back to client
-with Error field set to corresponding reason of delivery fail. 
+with Error field set to corresponding reason of delivery fail.
 When client accepts the message, it will send the message with Type: "ack" and
 copied ID to notify client that message was accepted to delivery.
 
 Good luck writing your own client!
-
