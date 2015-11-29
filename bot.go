@@ -42,6 +42,11 @@ func bot(st stream.Stream) error {
 						room.Unlock()
 					}
 					if sender != ME {
+						words.Lock()
+						Stem(e.Body)
+						words.Unlock()
+					}
+					if sender != ME {
 						hookExec.NewEvent(hookexecutor.IncomingEvent{"message", map[string]string{"sender": sender, "body": e.Body}})
 						switch {
 						case strings.EqualFold(strings.TrimSpace(e.Body), "пщ"):

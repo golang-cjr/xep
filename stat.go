@@ -2,28 +2,24 @@ package main
 
 import (
 	"github.com/fjl/go-couchdb"
-	"github.com/kpmy/ypk/halt"
 	"log"
 )
-
-const dbUrl = "http://127.0.0.1:5984"
-const dbName = "stats"
 
 type CStatDoc struct {
 	Total int
 	Data  map[string]int
 }
 
-var db *couchdb.DB
+var statsDb *couchdb.DB
 
 func GetStat(docId string) (ret *CStatDoc, err error) {
 	ret = &CStatDoc{}
-	if err = db.Get(docId, ret, nil); err == nil {
+	if err = statsDb.Get(docId, ret, nil); err == nil {
 		if ret.Data == nil {
 			ret.Data = make(map[string]int)
 		}
 	} else if couchdb.NotFound(err) {
-		if _, err = db.Put(docId, ret, ""); err == nil {
+		if _, err = statsDb.Put(docId, ret, ""); err == nil {
 			ret, err = GetStat(docId)
 		}
 	}
@@ -31,8 +27,8 @@ func GetStat(docId string) (ret *CStatDoc, err error) {
 }
 
 func SetStat(docId string, old *CStatDoc) {
-	if rev, err := db.Rev(docId); err == nil {
-		if _, err = db.Put(docId, old, rev); err != nil {
+	if rev, err := statsDb.Rev(docId); err == nil {
+		if _, err = statsDb.Put(docId, old, rev); err != nil {
 			log.Println(err)
 		}
 	}
@@ -64,13 +60,4 @@ func IncStatLen(user, msg string) {
 		s.Total += count
 		SetStat(countId, s)
 	}
-}
-
-func init() {
-	if client, err := couchdb.NewClient(dbUrl, nil); err == nil {
-		db, _ = client.CreateDB(dbName)
-	} else {
-		halt.As(100, err)
-	}
-
 }
