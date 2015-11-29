@@ -105,6 +105,7 @@ func init() {
 	}
 
 	defOpts.NoStrings = true
+	defOpts.NoNum = true
 	words = words.New()
 	words.Load()
 	words.Sync()
