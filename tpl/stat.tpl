@@ -42,6 +42,13 @@
 			</div>
 			<div id="chart-container" class="col">
 			</div>
+			<div id="deads-container">
+				<h2>трупы</h2>
+				<img src="/static/img/deads.png" /><br/>
+				{{range .Deads}}
+					<span><em>{{.Nick}}</em></span><br/>
+				{{end}}
+			</div>
 		</div>
 	</body>
 	<script type="text/javascript">

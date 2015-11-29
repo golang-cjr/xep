@@ -26,7 +26,7 @@ func init() {
 	flag.StringVar(&resource, "r", "go", "-r=resource")
 	flag.StringVar(&pwd, "p", "GogogOg0", "-p=password")
 	log.SetFlags(0)
-	posts = new(Posts)
+	room = room.New()
 }
 
 func main() {

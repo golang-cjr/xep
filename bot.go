@@ -32,13 +32,14 @@ func bot(st stream.Stream) error {
 						user, _ = u.(string)
 					}
 					if e.Type == entity.GROUPCHAT {
-						posts.Lock()
+						room.Lock()
 						if sender != ME {
 							IncStat(user)
 							IncStatLen(user, e.Body)
+							room.Active(user)
 						}
-						posts.data = append(posts.data, Post{Nick: sender, User: user, Msg: e.Body})
-						posts.Unlock()
+						room.Grow(Post{Nick: sender, User: user, Msg: e.Body})
+						room.Unlock()
 					}
 					if sender != ME {
 						hookExec.NewEvent(hookexecutor.IncomingEvent{"message", map[string]string{"sender": sender, "body": e.Body}})
@@ -68,6 +69,10 @@ func bot(st stream.Stream) error {
 						if u, ok := um[sender]; ok {
 							user, _ = u.(string)
 						}
+						actors.With().Do(R(func(r *Room) (e error) {
+							r.User(user)
+							return
+						})).Run(room)
 						if show := firstByName(e.Model(), "show"); e.Model().Attr("type") == "" && (show == nil || show.ChildrenCount() == 0) { //онлаен тип
 							hookExec.NewEvent(hookexecutor.IncomingEvent{"presence", map[string]string{"sender": sender, "user": user}})
 						}

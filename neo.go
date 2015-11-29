@@ -16,6 +16,7 @@ type (
 	TplData struct {
 		Count *StatData
 		Total *StatData
+		Deads []*User
 	}
 
 	StatData struct {
@@ -53,15 +54,15 @@ func neo_server(wg *sync.WaitGroup) {
 	//app.Templates("tpl/*.tpl") //кэширует в этом месте и далее не загружает с диска, сука
 	app.Serve("/static", "static")
 	app.Get("/", func(ctx *neo.Ctx) (int, error) {
-		posts.Lock()
 		data := struct {
 			Posts []Post
 		}{}
-		for i := len(posts.data) - 1; i >= 0; i-- {
-			p := posts.data[i]
+		room.Lock()
+		for i := len(room.posts) - 1; i >= 0; i-- {
+			p := room.posts[i]
 			data.Posts = append(data.Posts, p)
 		}
-		posts.Unlock()
+		room.Unlock()
 
 		if t, err := loadTpl("log"); t != nil {
 			//ctx.Res.Tpl("log.tpl", data)
@@ -95,6 +96,13 @@ func neo_server(wg *sync.WaitGroup) {
 				data := &TplData{}
 				data.Count = conv(c)
 				data.Total = conv(t)
+				room.Lock()
+				for _, u := range room.users {
+					if !u.Active {
+						data.Deads = append(data.Deads, u)
+					}
+				}
+				room.Unlock()
 				var tpl *template.Template
 				if tpl, err = loadTpl("stat"); tpl != nil {
 					tpl.Execute(ctx.Res, data)
