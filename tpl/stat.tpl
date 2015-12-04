@@ -8,9 +8,10 @@
 		<script src="http://code.highcharts.com/adapters/standalone-framework.js"></script>
 		<script src="http://code.highcharts.com/highcharts.js"></script>
 		<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+		<script src="/static/js/log.link.js"></script>
 	</head>
 	<body>
-		<a id="today">golang@c.j.r. сегодня</a> <a href="/">логи</a>
+		<a id="today">golang@c.j.r.</a> <a href="/">логи</a>
 		<div class="clearfix"></div>
 		<div class="container">
 			<div class="col" id="col-userlist">
@@ -74,11 +75,5 @@
 				data: data
 				}]
 			});
-	</script>
-	<script>
-		$(function(){
-				var d = new Date();
-				$("#today").attr("href", "http://chatlogs.jabber.ru/golang@conference.jabber.ru/"+d.getFullYear()+"/"+(d.getMonth() + 1)+"/"+d.getDate()+".html");
-			})
 	</script>
 </html>
