@@ -14,6 +14,7 @@
 		</style>
 		<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 		<script src="https://cdn.rawgit.com/gregjacobs/Autolinker.js/master/dist/Autolinker.min.js"></script>
+		<script src="https://cdn.rawgit.com/epeli/underscore.string/master/dist/underscore.string.min.js"></script>
 		<script src="/static/js/log.link.js"></script>
 	</head>
 	<body>
@@ -23,7 +24,7 @@
 		<script>
 			$(function(){
 				$(".content").each(function(i, e){
-					var content = $(e).text();
+					var content = s.escapeHTML($(e).text())
 					$(e).empty();
 					$(e).html(Autolinker.link(content, {
 						newWindow: true,
