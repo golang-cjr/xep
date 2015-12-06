@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"github.com/ivpusic/golog"
 	"github.com/ivpusic/neo"
 	"github.com/ivpusic/neo-cors"
 	"github.com/ivpusic/neo/middlewares/logger"
 	"html/template"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -53,6 +55,12 @@ func neo_server(wg *sync.WaitGroup) {
 	app.Use(cors.Init())
 	//app.Templates("tpl/*.tpl") //кэширует в этом месте и далее не загружает с диска, сука
 	app.Serve("/static", "static")
+	app.Get("/favicon.ico", func(ctx *neo.Ctx) (int, error) {
+		buf := bytes.NewBuffer(nil)
+		ico(buf)
+		io.Copy(ctx.Res, buf)
+		return 200, nil
+	})
 	app.Get("/", func(ctx *neo.Ctx) (int, error) {
 		data := struct {
 			Posts []Post

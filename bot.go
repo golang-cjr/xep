@@ -24,7 +24,7 @@ func bot(st stream.Stream) error {
 		st.Ring(conv(func(_e entity.Entity) {
 			switch e := _e.(type) {
 			case *entity.Message:
-				if strings.HasPrefix(e.From, ROOM+"/") {
+				if strings.HasPrefix(e.From, ROOM+"/") && e.Body != "" {
 					sender := strings.TrimPrefix(e.From, ROOM+"/")
 					um := muc.UserMapping()
 					user := sender
